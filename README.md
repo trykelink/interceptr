@@ -147,15 +147,6 @@ cp .env.example .env
 
 Then update `DATABASE_URL` in `.env`.
 
-Example:
-
-```env
-DATABASE_URL=postgresql://interceptr:interceptr123@localhost:5432/interceptr
-APP_ENV=development
-APP_PORT=8000
-LOG_LEVEL=INFO
-```
-
 ### 4. Start PostgreSQL
 
 If you are creating the container for the first time:
@@ -163,8 +154,8 @@ If you are creating the container for the first time:
 ```bash
 docker run -d \
   --name interceptr-db \
-  -e POSTGRES_USER=interceptr \
-  -e POSTGRES_PASSWORD=interceptr123 \
+  -e POSTGRES_USER=user \
+  -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=interceptr \
   -p 5432:5432 \
   postgres:16
