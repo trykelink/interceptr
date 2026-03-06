@@ -1,6 +1,6 @@
 <p align="center">
   
-  <img src="/docs/banner-interceptr.png" alt="Interceptr Logo" width="160">
+  <img src="/docs/banner-interceptr.png" alt="Interceptr Logo">
 
   <h1 align="center">Interceptr</h1>
 
