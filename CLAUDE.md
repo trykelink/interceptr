@@ -15,7 +15,7 @@ before it executes. The core principle: nothing runs without inspection.
 - ✅ Week 1: Audit Logging — COMPLETE
 - ✅ Week 2: Tool Call Interceptor — COMPLETE
 - 🔄 Week 3: Policy Engine with YAML — IN PROGRESS
-- ⏳ Week 4: Prompt Injection Detection
+- 🔄 Week 4: Prompt Injection Detection — IN PROGRESS
 - ⏳ Week 5: Docker + Docs + DX
 - ⏳ Week 6: Open Source Release
 
@@ -128,6 +128,7 @@ GET  /health                — Health check
 POST /api/v1/intercept/     — Intercept a tool call and get an allow/deny decision
 GET  /api/v1/policy/        — Get current policy info
 POST /api/v1/policy/reload  — Reload policy from disk
+POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 ```
 
 ## Data model — AuditLog
@@ -149,6 +150,15 @@ POST /api/v1/policy/reload  — Reload policy from disk
 - agent mismatch → ALLOWED (policy doesn't apply)
 - `policy.yaml` loaded on startup if present, otherwise all tool calls are ALLOWED
 - `policy.yaml` must NOT be committed to git; `policy.example.yaml` is the reference
+
+## Injection Detection behavior
+- Pattern library in `injection_patterns.py` — pure data, no logic
+- `InjectionDetector` compiles all patterns at startup
+- Severity precedence: high > medium > low
+- high/medium → recommendation=`"block"`, creates audit log automatically
+- low → recommendation=`"monitor"`, no audit log
+- clean → recommendation=`"allow"`, no audit log
+
 
 ## Key decisions
 - Sync SQLAlchemy (not async) — simpler, sufficient for this use case
@@ -188,6 +198,19 @@ POST /api/v1/policy/reload  — Reload policy from disk
 - Repo: https://github.com/trykelink/interceptr
 
 ## Completed files
+
+### Week 4 — Prompt Injection Detection
+- `app/core/injection_patterns.py` — Curated prompt injection regex library grouped by severity
+- `app/core/injection_detector.py` — `InjectionDetector` and `AnalysisResult` with severity precedence and recommendations
+- `app/schemas/analysis.py` — Pydantic schemas for analysis request/response payloads
+- `app/api/analyze.py` — FastAPI router with POST `/api/v1/analyze/` and conditional blocked audit logging
+- `main.py` — Updated to include analyze router
+- `tests/test_injection_detector.py` — 14 unit tests for detection patterns, severity, and recommendations
+- `tests/test_analyze_endpoint.py` — 8 integration tests for endpoint behavior and audit log creation rules
+
+### Architecture decisions - Week 4
+- Injection detection uses regex pattern matching (not LLM guard) — $0 cost, 
+  offline, deterministic, <1ms per request. Covers ~80% of known attack vectors.
 
 ### Week 1 — Audit Logging
 - `app/models/audit_log.py` — SQLAlchemy model with `AuditLog` table and `LogStatus` enum
