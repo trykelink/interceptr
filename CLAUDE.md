@@ -13,7 +13,7 @@ before it executes. The core principle: nothing runs without inspection.
 
 ## Current status
 - ✅ Week 1: Audit Logging — COMPLETE
-- ⏳ Week 2: Tool Call Interceptor
+- 🔄 Week 2: Tool Call Interceptor — IN PROGRESS
 - ⏳ Week 3: Policy Engine with YAML
 - ⏳ Week 4: Prompt Injection Detection
 - ⏳ Week 5: Docker + Docs + DX
@@ -125,6 +125,7 @@ docker start interceptr-db
 POST /api/v1/audit-logs     — Create a new audit log entry
 GET  /api/v1/audit-logs     — Retrieve paginated audit logs
 GET  /health                — Health check
+POST /api/v1/intercept/     — Intercept a tool call and get an allow/deny decision
 ```
 
 ## Data model — AuditLog
@@ -187,3 +188,15 @@ GET  /health                — Health check
 - `tests/conftest.py` — pytest fixtures with SQLite in-memory DB via `StaticPool`, async `client` fixture
 - `tests/test_audit_logs.py` — 4 async tests covering create (ALLOWED/BLOCKED) and list endpoints
 - `pytest.ini` — Sets `testpaths = tests` and `pythonpath = .` for correct imports
+
+### Week 2 — Tool Call Interceptor
+- `app/schemas/intercept.py` — Pydantic schemas: `InterceptRequest`, `InterceptDecision`, `InterceptResponse`
+- `app/services/interceptor_service.py` — `InterceptorService` class with `evaluate()` and `intercept()` methods; module-level `interceptor_service` singleton
+- `app/api/intercept.py` — FastAPI router with POST `/api/v1/intercept/`
+- `main.py` — Updated to include intercept router
+- `tests/test_intercept.py` — 5 async tests covering allowed decision, audit log auto-creation, log_id UUID validation, metadata, and missing fields
+
+## Architecture decisions — Week 2
+- `InterceptorService` uses dependency injection for `policy_engine` (None in Week 2, injected in Week 3)
+- `intercept()` always creates an audit log regardless of decision (ALLOWED or BLOCKED)
+- Module-level singleton `interceptor_service` instantiated in `interceptor_service.py`
