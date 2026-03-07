@@ -14,9 +14,9 @@ before it executes. The core principle: nothing runs without inspection.
 ## Current status
 - ✅ Week 1: Audit Logging — COMPLETE
 - ✅ Week 2: Tool Call Interceptor — COMPLETE
-- 🔄 Week 3: Policy Engine with YAML — IN PROGRESS
-- 🔄 Week 4: Prompt Injection Detection — IN PROGRESS
-- ⏳ Week 5: Docker + Docs + DX
+- ✅ Week 3: Policy Engine with YAML — COMPLETE
+- ✅ Week 4: Prompt Injection Detection — COMPLETE
+- 🔄 Week 5: Docker + Docs + DX — IN PROGRESS
 - ⏳ Week 6: Open Source Release
 
 ## Setup
@@ -47,6 +47,24 @@ uvicorn main:app --reload --port 8000
 pytest                          # run all tests
 pytest tests/test_foo.py        # run a single test file
 pytest -k "test_name"           # run a specific test by name
+```
+
+## Docker
+```bash
+# Build the production image
+docker build -t interceptr:local .
+
+# Start full stack (Interceptr + PostgreSQL) via Compose
+docker compose up --build -d
+
+# Stop and remove containers + volumes
+docker compose down -v
+
+# View logs
+docker compose logs interceptr
+
+# Check container health
+docker compose ps
 ```
 
 ## Architecture
@@ -119,6 +137,20 @@ docker exec -it interceptr-db psql -U interceptr -d interceptr -c "\dt"
 # Start DB if container is stopped
 docker start interceptr-db
 ```
+
+## Docker
+```bash
+# Build image
+docker build -t interceptr .
+
+# Run local stack (Interceptr + PostgreSQL)
+docker compose up
+```
+
+- Runtime user: `interceptr` (non-root)
+- Healthcheck: `GET /health`
+- Build strategy: multi-stage Dockerfile
+- Target final image size: under 200MB
 
 ## API endpoints
 ```
@@ -198,6 +230,16 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - Repo: https://github.com/trykelink/interceptr
 
 ## Completed files
+
+### Week 5 — Docker + Docs + DX
+- `Dockerfile` — Multi-stage production build (builder + final), non-root runtime, `/health` healthcheck
+- `.dockerignore` — Docker build context exclusions for faster and cleaner builds
+- `docker-compose.yml` — Local development stack for Interceptr + PostgreSQL with health-gated startup
+- `.env.example` — Updated with Docker/Compose defaults for app and PostgreSQL
+- `docs/quickstart.md` — 5-minute setup guide (Docker Compose + local dev), first interception, and verification
+- `docs/policy-reference.md` — Complete YAML policy reference, evaluation order, examples, and hot reload
+- `docs/openai-integration.md` — OpenAI Agents SDK integration with interception wrapper and pre-agent analyze flow
+- `docs/index.md` — Documentation index linking quickstart, policy reference, and integration guide
 
 ### Week 4 — Prompt Injection Detection
 - `app/core/injection_patterns.py` — Curated prompt injection regex library grouped by severity
