@@ -13,8 +13,8 @@ before it executes. The core principle: nothing runs without inspection.
 
 ## Current status
 - ✅ Week 1: Audit Logging — COMPLETE
-- 🔄 Week 2: Tool Call Interceptor — IN PROGRESS
-- ⏳ Week 3: Policy Engine with YAML
+- ✅ Week 2: Tool Call Interceptor — COMPLETE
+- 🔄 Week 3: Policy Engine with YAML — IN PROGRESS
 - ⏳ Week 4: Prompt Injection Detection
 - ⏳ Week 5: Docker + Docs + DX
 - ⏳ Week 6: Open Source Release
@@ -126,6 +126,8 @@ POST /api/v1/audit-logs     — Create a new audit log entry
 GET  /api/v1/audit-logs     — Retrieve paginated audit logs
 GET  /health                — Health check
 POST /api/v1/intercept/     — Intercept a tool call and get an allow/deny decision
+GET  /api/v1/policy/        — Get current policy info
+POST /api/v1/policy/reload  — Reload policy from disk
 ```
 
 ## Data model — AuditLog
@@ -138,6 +140,15 @@ POST /api/v1/intercept/     — Intercept a tool call and get an allow/deny deci
 | `arguments` | JSON | Arguments passed to the tool |
 | `status` | Enum | `ALLOWED` or `BLOCKED` |
 | `reason` | String (nullable) | Why it was blocked, null if allowed |
+
+## Policy Engine behavior
+- deny list checked first (always blocks even if tool is also in allow)
+- allow list checked second
+- default applied if tool is in neither list
+- agent wildcard `"*"` matches all agents
+- agent mismatch → ALLOWED (policy doesn't apply)
+- `policy.yaml` loaded on startup if present, otherwise all tool calls are ALLOWED
+- `policy.yaml` must NOT be committed to git; `policy.example.yaml` is the reference
 
 ## Key decisions
 - Sync SQLAlchemy (not async) — simpler, sufficient for this use case
@@ -188,6 +199,15 @@ POST /api/v1/intercept/     — Intercept a tool call and get an allow/deny deci
 - `tests/conftest.py` — pytest fixtures with SQLite in-memory DB via `StaticPool`, async `client` fixture
 - `tests/test_audit_logs.py` — 4 async tests covering create (ALLOWED/BLOCKED) and list endpoints
 - `pytest.ini` — Sets `testpaths = tests` and `pythonpath = .` for correct imports
+
+### Week 3 — Policy Engine with YAML
+- `policy.example.yaml` — Reference policy file for users to copy and customize
+- `app/core/policy_engine.py` — `PolicyEngine` class: loads YAML, evaluates tool calls against rules
+- `app/schemas/policy.py` — Pydantic schemas: `PolicyInfo`, `PolicyReloadResponse`
+- `app/api/policy.py` — FastAPI router with GET `/api/v1/policy/` and POST `/api/v1/policy/reload`
+- `main.py` — Updated to load `PolicyEngine` on startup if `policy.yaml` exists
+- `tests/test_policy_engine.py` — 10 unit tests for PolicyEngine class
+- `tests/test_intercept_with_policy.py` — 6 integration tests for interception with policy active
 
 ### Week 2 — Tool Call Interceptor
 - `app/schemas/intercept.py` — Pydantic schemas: `InterceptRequest`, `InterceptDecision`, `InterceptResponse`
