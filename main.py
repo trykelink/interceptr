@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.core.database import engine, Base
 import app.models.audit_log  # noqa: F401 — registers AuditLog with Base.metadata
 from app.api.audit_logs import router as audit_logs_router
+from app.api.intercept import router as intercept_router
 
 # FastAPI application entry point, registers lifespan events and base routes
 
@@ -22,6 +23,7 @@ app = FastAPI(
 )
 
 app.include_router(audit_logs_router)
+app.include_router(intercept_router)
 
 
 @app.get("/health")
