@@ -1,7 +1,9 @@
-# docker-compose.yml — Local development environment: Interceptr + PostgreSQL
+# docker-compose.yml — Interceptr + PostgreSQL stack
+# Env vars are read from .env in the same directory as this file (e.g. ~/.interceptr/.env).
+# All values have defaults so it works with no .env file.
 services:
   interceptr:
-    build: .
+    image: ghcr.io/trykelink/interceptr:latest
     ports:
       - "8000:8000"
     environment:
@@ -11,9 +13,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      # Optional policy mount: keep this only when ./policy.yaml exists.
-      - ./policy.yaml:/app/policy.yaml:ro
     restart: unless-stopped
 
   db:
