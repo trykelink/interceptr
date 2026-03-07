@@ -1,0 +1,29 @@
+# Interceptr Policy Configuration
+# Copy this file to policy.yaml and customize for your agent.
+# Documentation: https://github.com/trykelink/interceptr
+
+version: "1.0"
+
+# Agent this policy applies to.
+# Use "*" to apply to all agents.
+agent: "customer-support-agent"
+
+rules:
+  # Tools explicitly allowed
+  allow:
+    - read_customer
+    - list_orders
+    - search_products
+    - get_order_status
+
+  # Tools explicitly denied
+  deny:
+    - delete_customer
+    - update_price
+    - export_data
+    - drop_table
+
+# What to do if a tool is not in allow or deny list.
+# Options: "allow" or "deny"
+# Recommended: "deny" (allowlist-first approach)
+default: "deny"
