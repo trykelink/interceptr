@@ -56,7 +56,14 @@ fi
 # 4. Check / install pipx
 if ! command -v pipx >/dev/null 2>&1; then
   info "pipx not found — installing..."
-  python3 -m pip install --user pipx
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get install -y pipx
+  elif command -v brew >/dev/null 2>&1; then
+    brew install pipx
+  else
+    pip3 install --user pipx --break-system-packages 2>/dev/null || \
+    pip install --user pipx --break-system-packages
+  fi
   python3 -m pipx ensurepath
   export PATH="$PATH:$HOME/.local/bin"
 else
