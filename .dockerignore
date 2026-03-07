@@ -1,0 +1,15 @@
+# .dockerignore — Docker build context exclusions for Interceptr
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+venv/
+.venv/
+tests/
+docs/
+*.md
+.env
+policy.yaml
+.DS_Store
