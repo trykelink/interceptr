@@ -17,7 +17,7 @@ from app.services.interceptor_service import interceptor_service
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     print("✅ Database connected")
-    if os.path.exists("policy.yaml"):
+    if os.path.isfile("policy.yaml"):
         interceptor_service.policy_engine = PolicyEngine("policy.yaml")
         print(f"✅ Policy loaded: {interceptor_service.policy_engine.agent}")
     else:
