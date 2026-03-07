@@ -16,8 +16,8 @@ before it executes. The core principle: nothing runs without inspection.
 - ✅ Week 2: Tool Call Interceptor — COMPLETE
 - ✅ Week 3: Policy Engine with YAML — COMPLETE
 - ✅ Week 4: Prompt Injection Detection — COMPLETE
-- 🔄 Week 5: Docker + Docs + DX — IN PROGRESS
-- ⏳ Week 6: Open Source Release
+- ✅ Week 5: Docker + Docs + DX — COMPLETE
+- 🔄 Week 6: CLI + Install Script — IN PROGRESS
 
 ## Setup
 ```bash
@@ -102,8 +102,23 @@ interceptr/
 ├── tests/
 │   ├── conftest.py              # pytest fixtures, SQLite in-memory DB override
 │   └── test_audit_logs.py       # Tests for audit log endpoints
+├── interceptr/
+│   ├── __init__.py              # Package entry point, __version__
+│   ├── client.py                # HTTP client for the Interceptr API
+│   └── cli/
+│       ├── __init__.py
+│       ├── main.py              # Typer app, all CLI commands
+│       └── tui/
+│           ├── __init__.py
+│           ├── app.py           # Textual TUI application
+│           ├── dashboard.py     # Server status + stats widget
+│           ├── logs.py          # Live audit logs widget
+│           └── policy.py        # Policy info widget
 ├── docs/
 ├── main.py                      # FastAPI app entry point
+├── pyproject.toml               # Modern package definition, entry point
+├── install.sh                   # One-command installer (macOS + Linux)
+├── uninstall.sh                 # Uninstaller script
 ├── requirements.txt
 ├── .env                         # Local only, never committed
 ├── .env.example                 # Committed, no real credentials
@@ -212,6 +227,9 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - python-dotenv 1.0.1
 - pytest 8.3.3
 - httpx 0.27.2
+- Typer 0.12.5 (CLI framework)
+- Rich 13.9.4 (terminal output)
+- Textual 0.61.1 (TUI framework)
 
 ## Hardware
 - Mac Mini M2 Pro 32GB — primary development machine
@@ -229,7 +247,31 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - GitHub org: https://github.com/trykelink
 - Repo: https://github.com/trykelink/interceptr
 
+## CLI
+- Install: `curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | sh`
+- Entry point: `interceptr = interceptr.cli.main:app`
+- `interceptr start` — checks Docker, downloads compose to `~/.interceptr/`, starts containers, waits for health, opens TUI
+- `interceptr stop` — stops containers via `docker compose down`
+- Config dir: `~/.interceptr/`
+- Compose file: `~/.interceptr/docker-compose.yml` (downloaded from GitHub on first start)
+- Uninstall: `interceptr uninstall` or `uninstall.sh`
+
 ## Completed files
+
+### Week 6 — CLI + Install Script
+- `pyproject.toml` — Modern package definition with hatchling, entry point, CLI deps
+- `install.sh` — One-command installer: detects OS, checks Python/Docker, installs via pipx
+- `uninstall.sh` — Uninstaller via pipx with optional pipx removal
+- `interceptr/__init__.py` — Package entry point, `__version__`
+- `interceptr/client.py` — `InterceptrClient` HTTP client, `InterceptrNotRunningError`
+- `interceptr/cli/__init__.py` — CLI package init
+- `interceptr/cli/main.py` — Typer app: help, start, stop, status, logs, policy, analyze, uninstall
+- `interceptr/cli/docker.py` — Docker lifecycle: check, download compose, start/stop containers, health poll
+- `interceptr/cli/tui/__init__.py` — TUI package init
+- `interceptr/cli/tui/app.py` — `InterceptrTUI` Textual app, 3s auto-refresh, key bindings
+- `interceptr/cli/tui/dashboard.py` — `DashboardWidget`, server status + allowed/blocked counts
+- `interceptr/cli/tui/logs.py` — `LogsWidget`, live 20-entry audit log table
+- `interceptr/cli/tui/policy.py` — `PolicyWidget`, policy info with refresh
 
 ### Week 5 — Docker + Docs + DX
 - `Dockerfile` — Multi-stage production build (builder + final), non-root runtime, `/health` healthcheck
