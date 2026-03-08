@@ -74,23 +74,24 @@ fi
 info "Installing Interceptr..."
 pipx install git+https://github.com/trykelink/interceptr.git
 
-# 6. Verify installation
+# 6. Make interceptr available in the current session
+export PATH=$PATH:$HOME/.local/bin
+
+# 7. Verify installation
 if ! command -v interceptr >/dev/null 2>&1; then
   warn "interceptr command not found in PATH."
-  warn "You may need to restart your shell or run: source ~/.zshrc"
+  warn "You may need to restart your shell or run: source ~/.bashrc"
 else
   interceptr --version 2>/dev/null || true
 fi
 
-# 7. Success message
-printf "\n"
-printf "${GREEN}✅ Interceptr installed successfully!${RESET}\n"
-printf "\n"
+# 8. Success message
+printf "\n${GREEN}✅ Interceptr installed successfully!${RESET}\n\n"
+printf "If the command is not found, run:\n"
+printf "   source ~/.bashrc\n\n"
 printf "Get started:\n"
-printf "  ${GREEN}interceptr start${RESET}   — downloads, starts server, opens dashboard\n"
-printf "  ${GREEN}interceptr stop${RESET}    — stops the server\n"
-printf "  ${GREEN}interceptr help${RESET}    — show all commands\n"
-printf "\n"
+printf "   interceptr start      -- downloads, starts server, opens dashboard\n"
+printf "   interceptr stop       -- stops the server\n"
+printf "   interceptr help       -- show all commands\n\n"
 printf "Docker is required to run Interceptr: https://docs.docker.com/get-docker/\n"
-printf "Built by Kelink: https://kelink.dev\n"
-printf "\n"
+printf "Built by Kelink: ${GREEN}https://kelink.dev${RESET}\n\n"
