@@ -3,7 +3,9 @@
 # All values have defaults so it works with no .env file.
 services:
   interceptr:
-    image: ghcr.io/trykelink/interceptr:latest
+    build:
+      context: https://github.com/trykelink/interceptr.git
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
