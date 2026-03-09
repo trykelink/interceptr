@@ -7,6 +7,7 @@ from textual.widgets import Footer, Header, Static
 from textual.containers import Horizontal, Vertical
 
 from interceptr.client import InterceptrClient
+from interceptr.cli.config import get_detection_mode, get_llm_provider
 from interceptr.cli.tui.logs import LogsWidget
 from interceptr.cli.tui.policy import PolicyWidget
 
@@ -65,6 +66,12 @@ class InterceptrTUI(App):
     def __init__(self) -> None:
         super().__init__()
         self._client = InterceptrClient()
+        mode = get_detection_mode()
+        provider = get_llm_provider()
+        if mode == "llm" and provider:
+            self._detection_label = f"Detection: {provider.capitalize()} + regex"
+        else:
+            self._detection_label = "Detection: regex"
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -79,9 +86,9 @@ class InterceptrTUI(App):
     def _status_text(self) -> str:
         try:
             data = self._client.health()
-            return f"● Running  |  status: {data.get('status', 'ok')}"
+            return f"● Running  |  status: {data.get('status', 'ok')}  |  {self._detection_label}"
         except Exception:
-            return "⚠ Connection lost — server unreachable"
+            return f"⚠ Connection lost — server unreachable  |  {self._detection_label}"
 
     def on_mount(self) -> None:
         self.set_interval(3, self._refresh_status)
