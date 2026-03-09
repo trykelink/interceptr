@@ -19,6 +19,9 @@
   <img src="https://img.shields.io/badge/license-MIT-black" alt="MIT License">
   <img src="https://img.shields.io/badge/status-MVP-orange" alt="MVP status">
   <img src="https://img.shields.io/badge/tests-55%20passing-brightgreen" alt="55 tests passing">
+  <br>
+  <a href="https://github.com/trykelink/interceptr/actions/workflows/ci.yml"><img src="https://github.com/trykelink/interceptr/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://hub.docker.com/r/imelinc/interceptr"><img src="https://img.shields.io/docker/pulls/imelinc/interceptr" alt="Docker"></a>
 </p>
 
 ---

@@ -3,9 +3,7 @@
 # All values have defaults so it works with no .env file.
 services:
   interceptr:
-    build:
-      context: https://github.com/trykelink/interceptr.git
-      dockerfile: Dockerfile
+    image: imelinc/interceptr:latest
     ports:
       - "8000:8000"
     environment:

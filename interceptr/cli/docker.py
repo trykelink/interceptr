@@ -47,7 +47,7 @@ def start_containers() -> None:
     """Run docker compose up -d --pull always against the cached compose file."""
     console.print("[cyan]🐳 Starting Interceptr containers...[/cyan]")
     result = subprocess.run(
-        ["docker", "compose", "-f", str(COMPOSE_FILE), "up", "-d", "--pull", "always"],
+        ["docker", "compose", "-f", str(COMPOSE_FILE), "up", "-d"],
         capture_output=True,
         text=True,
     )

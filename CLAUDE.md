@@ -207,6 +207,13 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - clean → recommendation=`"allow"`, no audit log
 
 
+## CI/CD
+- CI workflow: `.github/workflows/ci.yml` — runs pytest on every push to main and every PR
+- Docker publish: `.github/workflows/docker-publish.yml` — builds and pushes `imelinc/interceptr` on version tags
+- Multi-platform build: linux/amd64 + linux/arm64 (Apple Silicon + Linux servers)
+- To release: `git tag v0.1.0 && git push origin v0.1.0`
+- Secrets required in GitHub repo: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+
 ## Key decisions
 - Sync SQLAlchemy (not async) — simpler, sufficient for this use case
 - UUID as primary key for all models
