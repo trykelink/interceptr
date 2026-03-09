@@ -263,9 +263,12 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - `install.sh` — One-command installer: detects OS, checks Python/Docker, installs via pipx
 - `uninstall.sh` — Uninstaller via pipx with optional pipx removal
 - `interceptr/__init__.py` — Package entry point, `__version__`
+- `~/.interceptr/.env` — Runtime config (chmod 600): INTERCEPTR_INITIALIZED, INTERCEPTR_DETECTION_MODE, optional LLM vars
 - `interceptr/client.py` — `InterceptrClient` HTTP client, `InterceptrNotRunningError`
 - `interceptr/cli/__init__.py` — CLI package init
-- `interceptr/cli/main.py` — Typer app: help, start, stop, status, logs, policy, analyze, uninstall
+- `interceptr/cli/main.py` — Typer app: help, start, stop, status, logs, policy, analyze, config, uninstall
+- `interceptr/cli/setup.py` — First-time setup wizard: welcome, explain detection, optional LLM provider, saves ~/.interceptr/.env
+- `interceptr/cli/config.py` — Config reader: load_config, get_detection_mode, get_llm_provider, get_llm_model
 - `interceptr/cli/docker.py` — Docker lifecycle: check, download compose, start/stop containers, health poll
 - `interceptr/cli/tui/__init__.py` — TUI package init
 - `interceptr/cli/tui/app.py` — `InterceptrTUI` Textual app, 3s auto-refresh, key bindings
