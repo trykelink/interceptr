@@ -66,6 +66,7 @@ def _show_help() -> None:
     table.add_row("logs", "Show recent audit logs")
     table.add_row("policy", "Manage your policy config")
     table.add_row("analyze", "Analyze text for prompt injection")
+    table.add_row("config", "View or update configuration")
     table.add_row("uninstall", "Remove Interceptr completely")
 
     panel = Panel(
@@ -80,6 +81,11 @@ def _show_help() -> None:
 @app.command("start")
 def start() -> None:
     """Start Interceptr and open the interactive dashboard."""
+    from interceptr.cli.setup import is_first_run, run_setup
+
+    if is_first_run():
+        run_setup()
+
     from interceptr.cli.docker import (
         is_docker_running,
         is_compose_present,
@@ -332,6 +338,46 @@ def analyze(
     except InterceptrNotRunningError:
         _not_running_panel()
         raise typer.Exit(1)
+
+
+@app.command("config")
+def config(
+    reset: bool = typer.Option(False, "--reset", help="Reconfigure Interceptr from scratch"),
+) -> None:
+    """View or update Interceptr configuration."""
+    from interceptr.cli.config import load_config, get_detection_mode, get_llm_provider, get_llm_model
+    from interceptr.cli.setup import CONFIG_FILE, run_setup
+
+    if reset:
+        if CONFIG_FILE.exists():
+            CONFIG_FILE.unlink()
+            console.print("[dim]Configuration cleared.[/dim]")
+        run_setup()
+        return
+
+    cfg = load_config()
+    mode = get_detection_mode()
+    provider = get_llm_provider()
+    model = get_llm_model()
+
+    if mode == "llm" and provider and model:
+        api_key_raw = cfg.get("INTERCEPTR_LLM_API_KEY", "")
+        masked = api_key_raw[:-4] + "****" if len(api_key_raw) > 4 else "****"
+        content = (
+            f"[bold]Detection mode:[/bold]  llm + regex\n"
+            f"[bold]LLM provider:[/bold]    {provider}\n"
+            f"[bold]LLM model:[/bold]       {model}\n"
+            f"[bold]API key:[/bold]         {masked}\n\n"
+            "Run [bold]interceptr config --reset[/bold] to reconfigure from scratch."
+        )
+    else:
+        content = (
+            "[bold]Detection mode:[/bold]  regex (offline, $0)\n"
+            "[bold]LLM provider:[/bold]    not configured\n\n"
+            "Run [bold]interceptr config --reset[/bold] to reconfigure from scratch."
+        )
+
+    console.print(Panel(content, title="[bold]Current Configuration[/bold]", border_style="cyan"))
 
 
 @app.command("uninstall")
