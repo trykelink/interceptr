@@ -64,7 +64,9 @@ def _show_help() -> None:
     table.add_row("stop", "Stop the Interceptr server")
     table.add_row("status", "Check if the server is running")
     table.add_row("logs", "Show recent audit logs")
-    table.add_row("policy", "Manage your policy config")
+    table.add_row("policy show", "Display the current active policy")
+    table.add_row("policy edit", "Open the interactive policy editor")
+    table.add_row("policy reload", "Reload policy from disk")
     table.add_row("analyze", "Analyze text for prompt injection")
     table.add_row("config", "View or update configuration")
     table.add_row("uninstall", "Remove Interceptr completely")
@@ -282,6 +284,13 @@ def policy_show() -> None:
     except InterceptrNotRunningError:
         _not_running_panel()
         raise typer.Exit(1)
+
+
+@policy_app.command("edit")
+def policy_edit() -> None:
+    """Open the interactive policy editor."""
+    from interceptr.cli.tui.policy_editor import PolicyEditorApp
+    PolicyEditorApp().run()
 
 
 @policy_app.command("reload")
