@@ -206,6 +206,73 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - low → recommendation=`"monitor"`, no audit log
 - clean → recommendation=`"allow"`, no audit log
 
+## Injection pattern library — pattern count and breakdown
+
+**Total: 98 patterns** (24 original + 74 new)
+
+| Category | Original | Added | Total |
+|---|---|---|---|
+| `instruction_override` | 5 | 6 | 11 |
+| `role_hijack` | 4 | 8 | 12 |
+| `goal_hijack` | 2 | 0 | 2 |
+| `jailbreak` | 1 | 8 | 9 |
+| `data_exfiltration` | 2 | 8 | 10 |
+| `system_probe` | 2 | 6 | 8 |
+| `security_bypass` | 1 | 6 | 7 |
+| `privilege_escalation` | 2 | 6 | 8 |
+| `code_injection` | 2 | 6 | 8 |
+| `hypothetical_bypass` | 1 | 0 | 1 |
+| `fictional_bypass` | 2 | 0 | 2 |
+| `encoded_payload` (new) | 0 | 6 | 6 |
+| `social_engineering` (new) | 0 | 6 | 6 |
+| `multilingual_injection` (new) | 0 | 8 | 8 |
+
+### New categories added
+- **`encoded_payload`**: catches base64 strings (≥20 chars), decode function calls,
+  hex escape chains, URL-encoded sequences, and encoding-bypass framing.
+- **`social_engineering`**: catches authority impersonation (Anthropic, OpenAI),
+  trust appeals, authority figure invocation (doctor/boss/teacher), urgency framing,
+  harm-threat coercion, and shutdown threats.
+- **`multilingual_injection`**: covers instruction overrides and role hijacks in
+  Spanish, French, Portuguese, and German using literal unicode character classes
+  (e.g. `[cç]`, `[oõ]`, `[eé]`) for accented chars. `re.IGNORECASE` with Python 3
+  default unicode mode handles case folding of accented letters.
+
+### Regex decisions and tradeoffs
+- **`\bdan\b`** (role_hijack, low): added as spec'd but given "low" severity to reduce
+  impact. "Dan" is a very common English given name — FP rate will be high in practice.
+  Consider requiring context (`activate dan`, `you are dan`) in v0.2.
+- **Optional prefix groups** (e.g. `(all |the )?`): patterns only handle one optional
+  prefix word. Phrases like "all the records" (two words) won't match. This is intentional
+  to avoid over-broadening. Test texts were written to match exactly one optional prefix.
+- **`(show|...) (your)?` → `(show|...)( me)?( your)?`**: extended to cover "show me
+  your system prompt" which real users write. Two-step optional group.
+- **`(new|updated|revised) instructions[:\s]+`**: changed from `instructions (…|:)` to
+  `[:\s]+` separator so both "instructions:" (no space) and "instructions are" work.
+- **`no (restrictions|limits|rules|…)`** (jailbreak, high): intentionally broad since
+  this phrase almost never appears in legitimate agent tool calls. Note: caused the
+  pre-existing `test_low_severity_hypothetical` to escalate — updated that test's text
+  to remove restriction language.
+- **Base64 pattern** (low, ≥20 chars): threshold reduces FP on short encoded strings.
+  Still FP-prone on long API tokens/JWTs — kept at "low" (monitor, no audit log).
+- **URL-encoded sequence** `%XX{4+}`: requires 4+ encoded chars to avoid FP on single
+  URL-encoded chars in normal paths.
+
+### Patterns adjusted from spec
+- Spanish role hijack: `actúa como` uses `[uú]` to support both accented and plain u.
+- German pattern 8: replaced `tu es` (French, already in pattern 4) with
+  `spiel(e)? die rolle( von)?` to avoid duplicate cross-language pattern.
+- Harm-threat coercion: changed unbounded `.*` to `.{0,40}` to limit backtracking cost.
+
+### Known gaps — deferred to v0.2
+- **Fish shell** in `install.sh` PATH configuration (already noted in install.sh section)
+- **`\bdan\b`**: refine to require context words; current version has high FP risk
+- **Arabic, Chinese, Japanese, Korean** multilingual injection patterns
+- **Leetspeak / char substitution** obfuscation (e.g. `1gnor3 4ll 1nstruct10ns`)
+- **Prompt continuation attacks** (text truncated mid-sentence to force completion)
+- **Multi-turn context attacks** (injection spread across multiple messages — requires
+  session-level analysis, not single-message regex)
+
 
 ## CI/CD
 - CI workflow: `.github/workflows/ci.yml` — runs pytest on every push to main and every PR
@@ -213,6 +280,35 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - Multi-platform build: linux/amd64 + linux/arm64 (Apple Silicon + Linux servers)
 - To release: `git tag v0.1.0 && git push origin v0.1.0`
 - Secrets required in GitHub repo: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+
+## install.sh — PATH configuration
+
+### Root cause of the PATH problem
+After `pipx install`, the `interceptr` binary lands in `~/.local/bin`. That directory
+is not in PATH by default in many environments (fresh Ubuntu VMs, minimal shells).
+The old script only exported PATH for the current session (step 6), which worked
+for the running shell but was lost on next login.
+
+### Chosen approach
+1. **Permanent**: iterate over `.bashrc`, `.zshrc`, `.profile`, `.bash_profile`
+   — append `export PATH="$PATH:$HOME/.local/bin"` to each that exists and
+   doesn't already mention `.local/bin`.
+2. **Immediate**: always `export PATH="$PATH:$HOME/.local/bin"` in the running
+   shell so `interceptr` works without reopening the terminal.
+3. **Edge case**: if none of the config files exist, create `~/.profile` with the line.
+
+### Why `grep -q` before appending
+Prevents duplicate PATH entries on repeated installs. `grep -q '.local/bin' "$config"`
+returns 0 if any `.local/bin` mention is found — skips appending in that case.
+
+### Shebang change: `#!/bin/sh` → `#!/bin/bash`
+Bash arrays (`SHELL_CONFIGS=(...)`) require bash. On Ubuntu, `/bin/sh` is dash (POSIX
+only, no arrays). Changed shebang to `#!/bin/bash` to support the array syntax.
+macOS `/bin/bash` and Linux bash are both available on all supported targets.
+
+### Fish shell (pending — v0.2)
+Fish uses `~/.config/fish/config.fish` and a different `set -x PATH` syntax.
+Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 
 ## Key decisions
 - Sync SQLAlchemy (not async) — simpler, sufficient for this use case

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # install.sh — One-command installer for Interceptr
 # Usage: curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | sh
 
@@ -74,8 +74,38 @@ fi
 info "Installing Interceptr..."
 pipx install git+https://github.com/trykelink/interceptr.git
 
-# 6. Make interceptr available in the current session
-export PATH=$PATH:$HOME/.local/bin
+# 6. Configure PATH permanently in shell config files
+SHELL_CONFIGS=(
+    "$HOME/.bashrc"
+    "$HOME/.zshrc"
+    "$HOME/.profile"
+    "$HOME/.bash_profile"
+)
+
+PATH_LINE='export PATH="$PATH:$HOME/.local/bin"'
+PATH_CONFIGURED=0
+
+for config in "${SHELL_CONFIGS[@]}"; do
+    if [ -f "$config" ]; then
+        if ! grep -q '.local/bin' "$config"; then
+            printf "" >> "$config"
+            printf "# Added by Interceptr installer\n" >> "$config"
+            printf '%s\n' "$PATH_LINE" >> "$config"
+        fi
+        PATH_CONFIGURED=1
+    fi
+done
+
+# Edge case: no config file exists — create ~/.profile
+if [ "$PATH_CONFIGURED" -eq 0 ]; then
+    printf "# Added by Interceptr installer\n" >> "$HOME/.profile"
+    printf '%s\n' "$PATH_LINE" >> "$HOME/.profile"
+fi
+
+# Activate PATH in the current session
+export PATH="$PATH:$HOME/.local/bin"
+
+info "✅ PATH configured — interceptr is ready to use"
 
 # 7. Verify installation
 if ! command -v interceptr >/dev/null 2>&1; then
@@ -87,8 +117,6 @@ fi
 
 # 8. Success message
 printf "\n${GREEN}✅ Interceptr installed successfully!${RESET}\n\n"
-printf "If the command is not found, run:\n"
-printf "   source ~/.bashrc\n\n"
 printf "Get started:\n"
 printf "   interceptr start      -- downloads, starts server, opens dashboard\n"
 printf "   interceptr stop       -- stops the server\n"
