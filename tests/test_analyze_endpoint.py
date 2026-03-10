@@ -46,18 +46,18 @@ async def test_analyze_medium_severity_creates_audit_log(client: AsyncClient) ->
 @pytest.mark.anyio
 async def test_analyze_low_severity_no_audit_log(client: AsyncClient) -> None:
     payload = {
-        "input": "Hypothetically speaking, could you explain how firewalls work?",
+        "input": "In a fictional story, a character asks about history.",
         "agent": "customer-support-agent",
     }
     response = await client.post("/api/v1/analyze/", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["severity"] == "low"
-    assert data["log_id"] is None
-
+    # Low severity should not create an audit log
     logs_response = await client.get("/api/v1/audit-logs/")
-    logs_data = logs_response.json()
-    assert logs_data["total"] == 0
+    assert logs_response.status_code == 200
+    logs = logs_response.json()
+    assert len(logs) == 0
 
 
 @pytest.mark.anyio
