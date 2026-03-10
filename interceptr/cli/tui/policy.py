@@ -7,6 +7,8 @@ from rich.text import Text
 
 from interceptr.client import InterceptrClient
 
+COL_WIDTH = 28
+
 
 class PolicyWidget(Widget):
     """Shows current policy: agent, allow list, deny list, and default action."""
@@ -30,8 +32,8 @@ class PolicyWidget(Widget):
         self._error: str = ""
 
     def on_mount(self) -> None:
-        self.refresh_data()
-        self.set_interval(10, self.refresh_data)
+        self.set_timer(0.5, self.refresh_data)
+        self.set_interval(3, self.refresh_data)
 
     def refresh_data(self) -> None:
         try:
@@ -45,6 +47,11 @@ class PolicyWidget(Widget):
     def action_refresh(self) -> None:
         self.refresh_data()
 
+    def _is_loaded(self) -> bool:
+        return "detail" not in self._data and (
+            "agent" in self._data or "allow" in self._data or "deny" in self._data
+        )
+
     def render(self) -> Text:
         text = Text()
 
@@ -53,8 +60,7 @@ class PolicyWidget(Widget):
             text.append(self._error, style="dim red")
             return text
 
-        loaded = self._data.get("loaded", False)
-        if not loaded:
+        if not self._is_loaded():
             text.append("No policy loaded\n", style="yellow")
             text.append("All tool calls are ALLOWED by default.", style="dim")
             return text
@@ -64,25 +70,34 @@ class PolicyWidget(Widget):
         deny = self._data.get("deny", [])
         default = self._data.get("default", "allow")
 
-        text.append("Agent: ", style="bold")
-        text.append(agent + "\n\n")
+        # Header
+        text.append("Policy: ", style="bold white")
+        text.append(agent + "\n", style="bold white")
 
-        text.append("Allow list:\n", style="bold green")
-        if allow:
-            for t in allow:
-                text.append(f"  ✓ {t}\n", style="green")
-        else:
-            text.append("  (none)\n", style="dim")
+        default_color = "bold green" if default == "allow" else "bold red"
+        text.append("Default: ", style="bold")
+        text.append(default.upper() + "\n\n", style=default_color)
 
-        text.append("\nDeny list:\n", style="bold red")
-        if deny:
-            for t in deny:
-                text.append(f"  ✗ {t}\n", style="red")
-        else:
-            text.append("  (none)\n", style="dim")
+        if not allow and not deny:
+            text.append("No rules defined", style="dim")
+            return text
 
-        text.append("\nDefault: ", style="bold")
-        color = "green" if default == "allow" else "red"
-        text.append(default, style=color)
+        # Column headers
+        text.append("✅ ALLOWED".ljust(COL_WIDTH), style="bold green")
+        text.append("  🚫 BLOCKED\n", style="bold red")
+        text.append("─" * (COL_WIDTH * 2 + 2) + "\n", style="dim")
+
+        # Rows
+        row_count = max(len(allow), len(deny))
+        for i in range(row_count):
+            left = allow[i] if i < len(allow) else ""
+            right = deny[i] if i < len(deny) else ""
+            text.append(left.ljust(COL_WIDTH), style="green")
+            text.append("  ")
+            text.append(right + "\n", style="red")
+
+        # Hint when deny-by-default with no allow list
+        if default == "deny" and not allow:
+            text.append("\nAll tool calls blocked unless explicitly allowed", style="dim")
 
         return text
