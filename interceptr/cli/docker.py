@@ -71,6 +71,27 @@ def stop_containers() -> None:
         )
 
 
+def copy_policy_if_exists() -> None:
+    """Copy policy.yaml into the running container if one exists locally."""
+    policy_paths = [
+        Path.cwd() / "policy.yaml",
+        INTERCEPTR_DIR / "policy.yaml",
+    ]
+
+    for policy_path in policy_paths:
+        if policy_path.is_file():
+            result = subprocess.run(
+                ["docker", "cp", str(policy_path), "interceptr-interceptr-1:/app/policy.yaml"],
+                capture_output=True,
+            )
+            if result.returncode == 0:
+                try:
+                    httpx.post("http://localhost:8000/api/v1/policy/reload", timeout=5)
+                except Exception:
+                    pass
+            return
+
+
 def wait_for_server(timeout: int = 60) -> bool:
     """Poll /health every 2 seconds until 200 or timeout. Returns True if ready."""
     with Progress(
