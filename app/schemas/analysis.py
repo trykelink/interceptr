@@ -1,10 +1,12 @@
 # analysis.py - Pydantic schemas for prompt injection analysis requests and responses
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AnalyzeRequest(BaseModel):
-    input: str
-    agent: str | None = None
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    input_text: str = Field(..., alias="input", max_length=10_000)
+    agent: str | None = Field(default=None, max_length=100)
 
 
 class AnalyzeResponse(BaseModel):

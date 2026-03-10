@@ -1,8 +1,9 @@
 # analyze.py - API route for prompt injection analysis endpoint
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.injection_detector import injection_detector
+from app.core.rate_limiter import limiter
 from app.models.audit_log import LogStatus
 from app.schemas.analysis import AnalyzeRequest, AnalyzeResponse
 from app.schemas.audit_log import AuditLogCreate
@@ -12,14 +13,20 @@ router = APIRouter(prefix="/api/v1/analyze", tags=["analyze"])
 
 
 @router.post("/", response_model=AnalyzeResponse)
-def analyze_input(request: AnalyzeRequest, db: Session = Depends(get_db)) -> AnalyzeResponse:
-    analysis_result = injection_detector.analyze(request.input)
-    input_preview = request.input[:100]
+@limiter.limit("10/minute")
+def analyze_input(
+    request: Request,
+    payload: AnalyzeRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> AnalyzeResponse:
+    analysis_result = injection_detector.analyze(payload.input_text)
+    input_preview = payload.input_text[:100]
     log_id: str | None = None
 
     if analysis_result.is_injection and analysis_result.severity in {"high", "medium"}:
         log_data = AuditLogCreate(
-            agent=request.agent or "unknown",
+            agent=payload.agent or "unknown",
             tool="prompt_injection_detected",
             arguments={
                 "input_preview": input_preview,
