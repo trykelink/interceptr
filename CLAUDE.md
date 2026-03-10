@@ -18,6 +18,99 @@ before it executes. The core principle: nothing runs without inspection.
 - ✅ Week 4: Prompt Injection Detection — COMPLETE
 - ✅ Week 5: Docker + Docs + DX — COMPLETE
 - 🔄 Week 6: CLI + Install Script — IN PROGRESS
+- ✅ Security Audit (v0.1.0) — COMPLETED on March 10, 2026
+
+## Security audit — March 10, 2026 (v0.1.0)
+### What was audited
+- OWASP API Security Top 10 review across all FastAPI routes and schemas
+- Input validation and over-posting protections in all request payload models
+- Regex library safety (ReDoS + false-positive review)
+- Secrets handling (`.env`, `policy.yaml`, CLI config file permissions)
+- Dockerfile and Compose hardening
+- Dependency vulnerability scan (`pip-audit`) and outdated package inventory
+
+### What was fixed (code + config)
+- Added endpoint-specific rate limiting via SlowAPI:
+  - `POST /api/v1/analyze/` → `10/min`
+  - `POST /api/v1/intercept/` → `60/min`
+  - `POST /api/v1/policy/reload` → `5/min`
+  - `GET /api/v1/audit-logs/` → `30/min`
+- Added 429 handler with JSON response and rate limit headers.
+- Added global response security headers middleware in `main.py`.
+- Added strict request validation:
+  - `ConfigDict(extra="forbid")` on request schemas
+  - Length limits (`agent`, `tool`, analyze input max 10,000)
+  - Payload-size guards for `arguments` and `metadata`
+- Added generic exception and validation handlers to reduce information disclosure.
+- Added docs exposure control via `INTERCEPTR_ENABLE_DOCS` (disabled by default in production).
+- Hardened `/health` output (removed version disclosure).
+- Added audit-log argument sanitization/redaction for sensitive keys.
+- Added regex analysis cap (`10,000` chars) and new detection patterns for invisible unicode/token smuggling.
+- Hardened Docker/Compose:
+  - explicit `--no-cache-dir` on pip install
+  - Compose resource limits (`mem_limit`, `cpus`)
+  - PostgreSQL no longer exposed to host by default
+  - `.env.example` and compose defaults use `CHANGE_ME_IN_PRODUCTION` placeholders
+- Dependency remediation:
+  - Upgraded to `fastapi==0.135.1` and `starlette==0.52.1`
+  - `pip-audit` now reports no known vulnerabilities
+- CLI setup hardening: `~/.interceptr` directory set to `0700`, `.env` to `0600`.
+
+### Deferred to v0.2 (intentional)
+- API authentication/authorization (`X-Interceptr-API-Key`) still not built into v0.1.0.
+- `/api/v1/policy/reload` should be first endpoint protected by auth in v0.2.
+- Cryptographic audit-log integrity (hash chaining + signed checkpoints).
+- Full multi-tenant authorization model (deployment is still single-tenant by design).
+
+### Known remaining risks
+- v0.1.0 remains unauthenticated by default; deploy behind trusted network boundaries.
+- Direct database access can still tamper logs (API-level append-only is enforced, not DB-level immutability).
+- LLM-backed detection mode is optional and external-provider security posture depends on user-side key/network controls.
+
+## Second-reviewer findings — March 10, 2026 (Claude Code)
+
+Independent review of Codex's audit changes. All 149 tests pass post-review.
+
+### Verified correct by second reviewer
+- Rate limiting: all 4 endpoints at correct limits; 429 handler registered; `get_remote_address`
+  uses `request.client.host` with a `127.0.0.1` fallback; `SlowAPIMiddleware` + `app.state.limiter`
+  correctly wired in `main.py`.
+- Security headers: all 8 required headers present with correct values; middleware added via
+  `@app.middleware("http")` which applies to every response including errors.
+- Pydantic hardening: `extra="forbid"` on all 3 request schemas; field limits correct;
+  `arguments`/`metadata` have JSON-size guards (20KB/4KB); no existing tests broken.
+- Exception handler: correctly catches `Exception` without shadowing `HTTPException`
+  (FastAPI's internal handler for HTTPException has precedence in Starlette's MRO).
+  Full error is logged with `exc_info=True` before returning generic `{"detail": "Internal server error"}`.
+- Docker: non-root user enforced; port 5432 removed from host exposure; resource limits
+  (`mem_limit: 512m`, `cpus: 1.0` on app; `mem_limit: 768m` on db); `restart: unless-stopped`;
+  `--no-cache-dir` in pip install.
+- Secrets: `~/.interceptr` dir set to `0700`, `.env` to `0600`; LLM key never logged.
+- ReDoS: `_MAX_ANALYSIS_LENGTH = 10_000` cap in `injection_detector.py` bounds analysis before
+  regex runs; all 100 patterns compile and pass the 12,000-char adversarial timing test (<150ms each).
+- Dependency remediation: `fastapi==0.135.1` + `starlette==0.52.1` resolve CVE-2024-47874 and
+  CVE-2025-54121; `pip-audit` reports clean.
+- Audit log sanitization: `_sanitize_for_audit()` redacts sensitive keys and truncates deep/large structures.
+- Docs exposure: `/docs`, `/redoc`, `/openapi.json` disabled in production unless `INTERCEPTR_ENABLE_DOCS` is set.
+- SECURITY.md: all required sections present with accurate content.
+
+### Gaps found (minor)
+- `POST /api/v1/audit-logs/` (create log) has no rate limit. The audit scope specified only `GET`.
+  This is the internal write path typically called by the interceptor, so low risk, but worth
+  considering for v0.2 auth gating.
+- 429 responses are not covered in `test_security_controls.py` header assertions. Headers ARE
+  applied (middleware wraps everything) but not explicitly tested.
+- Rate limiter uses in-memory state (MemoryStorage default in SlowAPI). Not documented as a
+  known limitation for multi-worker deployments. Added to Known Remaining Risks below.
+
+### Fixes applied by second reviewer
+- Two PEP8 blank-line fixes in `main.py` (cosmetic only, no functional impact).
+
+### Updated known remaining risks
+- Rate-limit counters are in-process (SlowAPI MemoryStorage). In multi-worker deployments
+  (gunicorn -w 4), limits are not enforced globally — each worker has its own counter.
+  Use Redis as SlowAPI storage backend if running multiple workers in production.
+- POST /api/v1/audit-logs/ (create-log endpoint) has no rate limit in v0.1.
 
 ## Setup
 ```bash
@@ -133,14 +226,15 @@ interceptr/
 | `APP_ENV` | `development` or `production` (default: `development`) |
 | `APP_PORT` | Server port (default: `8000`) |
 | `LOG_LEVEL` | Logging level (default: `INFO`) |
+| `INTERCEPTR_ENABLE_DOCS` | Enables `/docs` and `/redoc` (defaults to `false` in production) |
 
 ## Environment
 - PostgreSQL in Docker
   - Container name: interceptr-db
   - User: interceptr
-  - Password: interceptr123
+  - Password: set via env (`CHANGE_ME_IN_PRODUCTION` placeholder in `.env.example`)
   - Database: interceptr
-  - Port: 5432
+  - Port: internal-only by default in compose
 - Python virtual environment: ~/interceptr/venv
 - Server port: 8000
 
@@ -208,7 +302,7 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 
 ## Injection pattern library — pattern count and breakdown
 
-**Total: 98 patterns** (24 original + 74 new)
+**Total: 100 patterns** (24 original + 76 new)
 
 | Category | Original | Added | Total |
 |---|---|---|---|
@@ -223,13 +317,14 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 | `code_injection` | 2 | 6 | 8 |
 | `hypothetical_bypass` | 1 | 0 | 1 |
 | `fictional_bypass` | 2 | 0 | 2 |
-| `encoded_payload` (new) | 0 | 6 | 6 |
+| `encoded_payload` (new) | 0 | 8 | 8 |
 | `social_engineering` (new) | 0 | 6 | 6 |
 | `multilingual_injection` (new) | 0 | 8 | 8 |
 
 ### New categories added
 - **`encoded_payload`**: catches base64 strings (≥20 chars), decode function calls,
-  hex escape chains, URL-encoded sequences, and encoding-bypass framing.
+  hex escape chains, URL-encoded sequences, invisible unicode control characters,
+  token-smuggling markers, and encoding-bypass framing.
 - **`social_engineering`**: catches authority impersonation (Anthropic, OpenAI),
   trust appeals, authority figure invocation (doctor/boss/teacher), urgency framing,
   harm-threat coercion, and shutdown threats.
@@ -249,10 +344,9 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
   your system prompt" which real users write. Two-step optional group.
 - **`(new|updated|revised) instructions[:\s]+`**: changed from `instructions (…|:)` to
   `[:\s]+` separator so both "instructions:" (no space) and "instructions are" work.
-- **`no (restrictions|limits|rules|…)`** (jailbreak, high): intentionally broad since
-  this phrase almost never appears in legitimate agent tool calls. Note: caused the
-  pre-existing `test_low_severity_hypothetical` to escalate — updated that test's text
-  to remove restriction language.
+- **`(respond|answer|act|...) no restrictions`** (jailbreak, high): narrowed from a broad
+  `no restrictions` matcher to reduce false positives in benign business text while still
+  catching direct jailbreak behavior instructions.
 - **Base64 pattern** (low, ≥20 chars): threshold reduces FP on short encoded strings.
   Still FP-prone on long API tokens/JWTs — kept at "low" (monitor, no audit log).
 - **URL-encoded sequence** `%XX{4+}`: requires 4+ encoded chars to avoid FP on single
@@ -380,7 +474,9 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 
 ## Stack
 - Python 3.12
-- FastAPI 0.115.0
+- FastAPI 0.135.1
+- Starlette 0.52.1
+- SlowAPI 0.1.9
 - Uvicorn 0.30.6
 - SQLAlchemy 2.0.36 (sync)
 - Alembic 1.13.3
