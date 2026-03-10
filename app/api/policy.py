@@ -14,7 +14,19 @@ def get_policy_info():
 
 @router.post("/reload")
 def reload_policy():
+    import os
+    from app.core.policy_engine import PolicyEngine
+
+    POLICY_PATH = "policy.yaml"
+
     if interceptor_service.policy_engine is None:
-        raise HTTPException(status_code=404, detail={"error": "no policy configured"})
-    interceptor_service.policy_engine.reload()
+        if not os.path.isfile(POLICY_PATH):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "policy.yaml not found. Place policy.yaml in the app directory and try again."}
+            )
+        interceptor_service.policy_engine = PolicyEngine(POLICY_PATH)
+    else:
+        interceptor_service.policy_engine.reload()
+
     return {"status": "reloaded", "policy": interceptor_service.policy_engine.info}

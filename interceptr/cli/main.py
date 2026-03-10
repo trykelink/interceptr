@@ -92,6 +92,7 @@ def start() -> None:
         download_compose,
         start_containers,
         wait_for_server,
+        copy_policy_if_exists,
     )
 
     # 1. Check Docker is installed and running
@@ -136,7 +137,10 @@ def start() -> None:
         )
         raise typer.Exit(1)
 
-    # 5. Open TUI
+    # 5. Copy policy.yaml into container if one exists locally
+    copy_policy_if_exists()
+
+    # 6. Open TUI
     from interceptr.cli.tui.app import InterceptrTUI
     InterceptrTUI().run()
 
