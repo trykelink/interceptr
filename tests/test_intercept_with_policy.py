@@ -1,4 +1,5 @@
 # test_intercept_with_policy.py — Integration tests for interception with policy engine active
+import itertools
 import pytest
 import yaml
 from httpx import AsyncClient, ASGITransport
@@ -18,6 +19,7 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+_CLIENT_COUNTER = itertools.count(start=1)
 
 POLICY_DATA = {
     "version": "1.0",
@@ -46,7 +48,9 @@ async def client_with_policy(tmp_path):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    octet = (next(_CLIENT_COUNTER) % 253) + 1
+    transport = ASGITransport(app=app, client=(f"10.20.0.{octet}", 50_001))
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
     app.dependency_overrides.clear()

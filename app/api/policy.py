@@ -1,5 +1,8 @@
 # policy.py — API routes for inspecting and reloading the active policy
-from fastapi import APIRouter, HTTPException
+import os
+from fastapi import APIRouter, HTTPException, Request, Response
+from app.core.policy_engine import PolicyEngine
+from app.core.rate_limiter import limiter
 from app.services.interceptor_service import interceptor_service
 
 router = APIRouter(prefix="/api/v1/policy", tags=["policy"])
@@ -13,19 +16,16 @@ def get_policy_info():
 
 
 @router.post("/reload")
-def reload_policy():
-    import os
-    from app.core.policy_engine import PolicyEngine
-
-    POLICY_PATH = "policy.yaml"
-
+@limiter.limit("5/minute")
+def reload_policy(request: Request, response: Response):
+    policy_path = "policy.yaml"
     if interceptor_service.policy_engine is None:
-        if not os.path.isfile(POLICY_PATH):
+        if not os.path.isfile(policy_path):
             raise HTTPException(
                 status_code=404,
-                detail={"error": "policy.yaml not found. Place policy.yaml in the app directory and try again."}
+                detail="policy.yaml not found. Place policy.yaml in the app directory and try again.",
             )
-        interceptor_service.policy_engine = PolicyEngine(POLICY_PATH)
+        interceptor_service.policy_engine = PolicyEngine(policy_path)
     else:
         interceptor_service.policy_engine.reload()
 

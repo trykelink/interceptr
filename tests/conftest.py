@@ -1,4 +1,5 @@
 # conftest.py — pytest fixtures and database setup for testing
+import itertools
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import create_engine, StaticPool
@@ -15,6 +16,12 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+_CLIENT_COUNTER = itertools.count(start=1)
+
+
+def _next_test_client_ip() -> str:
+    octet = (next(_CLIENT_COUNTER) % 253) + 1
+    return f"10.10.0.{octet}"
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +41,7 @@ async def client(setup_db):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    transport = ASGITransport(app=app, client=(_next_test_client_ip(), 50_000))
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
