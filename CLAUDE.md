@@ -281,6 +281,66 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - To release: `git tag v0.1.0 && git push origin v0.1.0`
 - Secrets required in GitHub repo: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
 
+## Policy Editor TUI — architecture notes
+
+### Widget structure
+`PolicyEditorApp` (Textual `App` subclass):
+- `Header` (title bar)
+- `ScrollableContainer` (all content scrollable):
+  - `Horizontal#config-row`: `Input#agent-input` + `RadioSet#default-radio`
+    - `RadioSet` contains `RadioButton#radio-allow` + `RadioButton#radio-deny`
+  - One `Collapsible` per category (6 total); first expanded, rest collapsed by default
+    - Inside each Collapsible: `Horizontal.tool-row` per tool
+      - `Checkbox.allow-box` (id: `allow__<tool_name>`)
+      - `Checkbox.deny-box` (id: `deny__<tool_name>`)
+      - `Static.tool-info` (tool name padded + description)
+- `Footer` (keybindings bar)
+
+### Mutual exclusivity between ALLOW/DENY
+Implemented in `on_checkbox_changed(event)`. When `event.value` is True (a box being checked):
+- If the ID starts with `allow__`, find and uncheck the corresponding `deny__` checkbox
+- If the ID starts with `deny__`, find and uncheck the corresponding `allow__` checkbox
+Setting a checkbox to False when it's already False emits no event → no infinite loop.
+Setting False on a True checkbox emits a Changed event with value=False → handler ignores
+it (early return on `not event.value`). Safe in all cases.
+
+### Checkbox ID scheme
+- `allow__<tool_name>` and `deny__<tool_name>` (double underscore to separate prefix
+  from tool names that use single underscores). CSS `#allow__read_customer` works fine.
+
+### Loading existing policy.yaml
+1. `load_existing_policy()` reads the file with `yaml.safe_load`
+2. `apply_deny_precedence()` strips from `allow` any tool also in `deny` (deny wins)
+3. In `on_mount()`, allow boxes are set first, then deny boxes — the event handler
+   auto-unchecks conflicting allow boxes when deny is set. No separate dedup needed.
+4. On YAML parse error: app starts with empty state and shows a warning notification.
+5. If the file doesn't exist: start with `agent="*"`, empty lists, `default="allow"`.
+
+### Pure functions (testable without TUI)
+- `parse_policy_yaml(content: str)` → normalized dict
+- `build_yaml_content(agent, allow, deny, default)` → YAML string
+- `apply_deny_precedence(allow, deny)` → (clean_allow, deny)
+These are module-level functions imported by tests without starting the Textual app.
+
+### Server reload on save
+`action_save()` does `httpx.post(_RELOAD_URL, timeout=3.0)`. If the server is unreachable
+(connection refused, timeout, etc.), the exception is caught and `server_up = False`.
+The notification message differs: "Policy saved and reloaded" vs "Policy saved — start
+Interceptr to apply". The policy file is always written regardless of server state.
+
+### PyYAML dependency
+`pyyaml>=6.0` was already present in `pyproject.toml` — no change needed.
+`yaml.dump(..., sort_keys=False)` preserves key ordering (agent → allow → deny → default)
+matching the example format in policy.example.yaml.
+
+### Textual-specific notes
+- `RadioButton.value = True` inside a `RadioSet` automatically deselects others.
+- Key bindings "s", "r", "q" are global App bindings. When `Input` is focused, printable
+  characters go to the Input (Textual input focus priority), so typing agent names works.
+- `self.set_timer(1.5, self.exit)` exits 1.5s after save to let the notification render.
+- `Collapsible(title=..., collapsed=(i > 0))` expands the first category (Database) and
+  collapses the rest on initial render.
+
 ## install.sh — PATH configuration
 
 ### Root cause of the PATH problem
@@ -360,6 +420,10 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Uninstall: `interceptr uninstall` or `uninstall.sh`
 
 ## Completed files
+
+### Week 6 — CLI + Install Script (continued)
+- `interceptr/cli/tui/policy_editor.py` — `PolicyEditorApp` interactive TUI for editing policy.yaml
+- `tests/test_policy_editor.py` — 20 unit tests for YAML read/write pure functions
 
 ### Week 6 — CLI + Install Script
 - `pyproject.toml` — Modern package definition with hatchling, entry point, CLI deps
