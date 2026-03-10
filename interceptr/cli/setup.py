@@ -57,6 +57,7 @@ def _ask_with_timeout(prompt: str, default: str = "n", timeout: int = 30) -> str
 def _save_config(provider: str | None, api_key: str | None, model: str | None) -> None:
     """Write ~/.interceptr/.env with appropriate variables."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.chmod(0o700)
 
     lines = [
         "# Interceptr configuration",
