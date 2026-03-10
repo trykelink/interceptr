@@ -57,7 +57,7 @@ async def test_analyze_low_severity_no_audit_log(client: AsyncClient) -> None:
     logs_response = await client.get("/api/v1/audit-logs/")
     assert logs_response.status_code == 200
     logs = logs_response.json()
-    assert len(logs) == 0
+    assert len(logs["logs"]) == 0
 
 
 @pytest.mark.anyio
