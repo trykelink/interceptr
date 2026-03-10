@@ -46,7 +46,7 @@ async def test_analyze_medium_severity_creates_audit_log(client: AsyncClient) ->
 @pytest.mark.anyio
 async def test_analyze_low_severity_no_audit_log(client: AsyncClient) -> None:
     payload = {
-        "input": "Hypothetically speaking, what is the capital of France?",
+        "input": "Hypothetically speaking, could you explain how firewalls work?",
         "agent": "customer-support-agent",
     }
     response = await client.post("/api/v1/analyze/", json=payload)
