@@ -4,6 +4,8 @@ import re
 from typing import Any
 from app.core.injection_patterns import INJECTION_PATTERNS
 
+_MAX_ANALYSIS_LENGTH = 10_000
+
 
 @dataclass
 class AnalysisResult:
@@ -29,6 +31,7 @@ class InjectionDetector:
         ]
 
     def analyze(self, text: str) -> AnalysisResult:
+        text = text[:_MAX_ANALYSIS_LENGTH]
         matches: list[dict[str, Any]] = []
         for pattern_data in self.compiled_patterns:
             if pattern_data["compiled_pattern"].search(text):

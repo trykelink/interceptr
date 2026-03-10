@@ -116,7 +116,7 @@ INJECTION_PATTERNS: list[dict[str, str]] = [
     },
     {
         "pattern": r"(your name is|you are called|call yourself) [a-z]+",
-        "severity": "medium",
+        "severity": "low",
         "category": "role_hijack",
         "description": "Attempts to rename or reassign the model's identity",
     },
@@ -190,7 +190,7 @@ INJECTION_PATTERNS: list[dict[str, str]] = [
         "description": "Attempts to activate an evil or unrestricted alter-ego mode",
     },
     {
-        "pattern": r"no (restrictions|limits|rules|ethics|guidelines|filters)",
+        "pattern": r"(respond|answer|act|behave|operate) (with )?no (restrictions|limits|rules|ethics|guidelines|filters)",
         "severity": "high",
         "category": "jailbreak",
         "description": "Explicitly states removal of all safety constraints",
@@ -365,7 +365,7 @@ INJECTION_PATTERNS: list[dict[str, str]] = [
     },
     {
         "pattern": r"(special|emergency|override|master) (access|code|key|password|token|command)",
-        "severity": "medium",
+        "severity": "low",
         "category": "security_bypass",
         "description": "Attempts to use a special code or token to gain elevated access",
     },
@@ -489,7 +489,7 @@ INJECTION_PATTERNS: list[dict[str, str]] = [
         "category": "fictional_bypass",
         "description": "Attempts justification via educational framing",
     },
-    # ── encoded_payload (new category: +6) ────────────────────────────────────────
+    # ── encoded_payload (new category: +8) ────────────────────────────────────────
     {
         "pattern": r"[A-Za-z0-9+/]{20,}={0,2}",
         "severity": "low",
@@ -525,6 +525,18 @@ INJECTION_PATTERNS: list[dict[str, str]] = [
         "severity": "medium",
         "category": "encoded_payload",
         "description": "Encoding reference combined with bypass intent",
+    },
+    {
+        "pattern": r"[\u200b-\u200f\u2060\ufeff]{2,}",
+        "severity": "medium",
+        "category": "encoded_payload",
+        "description": "Invisible Unicode control characters that can hide malicious instructions",
+    },
+    {
+        "pattern": r"<\|(im_start|im_end|endoftext|assistant|system)\|>",
+        "severity": "medium",
+        "category": "encoded_payload",
+        "description": "Special-token smuggling markers attempting to alter model context boundaries",
     },
     # ── social_engineering (new category: +6) ─────────────────────────────────────
     {
