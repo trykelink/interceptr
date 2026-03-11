@@ -71,47 +71,6 @@ before it executes. The core principle: nothing runs without inspection.
 
 Independent review of Codex's audit changes. All 149 tests pass post-review.
 
-### Verified correct by second reviewer
-- Rate limiting: all 4 endpoints at correct limits; 429 handler registered; `get_remote_address`
-  uses `request.client.host` with a `127.0.0.1` fallback; `SlowAPIMiddleware` + `app.state.limiter`
-  correctly wired in `main.py`.
-- Security headers: all 8 required headers present with correct values; middleware added via
-  `@app.middleware("http")` which applies to every response including errors.
-- Pydantic hardening: `extra="forbid"` on all 3 request schemas; field limits correct;
-  `arguments`/`metadata` have JSON-size guards (20KB/4KB); no existing tests broken.
-- Exception handler: correctly catches `Exception` without shadowing `HTTPException`
-  (FastAPI's internal handler for HTTPException has precedence in Starlette's MRO).
-  Full error is logged with `exc_info=True` before returning generic `{"detail": "Internal server error"}`.
-- Docker: non-root user enforced; port 5432 removed from host exposure; resource limits
-  (`mem_limit: 512m`, `cpus: 1.0` on app; `mem_limit: 768m` on db); `restart: unless-stopped`;
-  `--no-cache-dir` in pip install.
-- Secrets: `~/.interceptr` dir set to `0700`, `.env` to `0600`; LLM key never logged.
-- ReDoS: `_MAX_ANALYSIS_LENGTH = 10_000` cap in `injection_detector.py` bounds analysis before
-  regex runs; all 100 patterns compile and pass the 12,000-char adversarial timing test (<150ms each).
-- Dependency remediation: `fastapi==0.135.1` + `starlette==0.52.1` resolve CVE-2024-47874 and
-  CVE-2025-54121; `pip-audit` reports clean.
-- Audit log sanitization: `_sanitize_for_audit()` redacts sensitive keys and truncates deep/large structures.
-- Docs exposure: `/docs`, `/redoc`, `/openapi.json` disabled in production unless `INTERCEPTR_ENABLE_DOCS` is set.
-- SECURITY.md: all required sections present with accurate content.
-
-### Gaps found (minor)
-- `POST /api/v1/audit-logs/` (create log) has no rate limit. The audit scope specified only `GET`.
-  This is the internal write path typically called by the interceptor, so low risk, but worth
-  considering for v0.2 auth gating.
-- 429 responses are not covered in `test_security_controls.py` header assertions. Headers ARE
-  applied (middleware wraps everything) but not explicitly tested.
-- Rate limiter uses in-memory state (MemoryStorage default in SlowAPI). Not documented as a
-  known limitation for multi-worker deployments. Added to Known Remaining Risks below.
-
-### Fixes applied by second reviewer
-- Two PEP8 blank-line fixes in `main.py` (cosmetic only, no functional impact).
-
-### Updated known remaining risks
-- Rate-limit counters are in-process (SlowAPI MemoryStorage). In multi-worker deployments
-  (gunicorn -w 4), limits are not enforced globally — each worker has its own counter.
-  Use Redis as SlowAPI storage backend if running multiple workers in production.
-- POST /api/v1/audit-logs/ (create-log endpoint) has no rate limit in v0.1.
-
 ## Setup
 ```bash
 # Create and activate virtual environment
@@ -573,19 +532,6 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
   - Added `test_raw_yaml_error_leaves_engine_none` — yaml.YAMLError caught directly
   - Added `test_lifespan_catches_yaml_error_from_mocked_engine` — mocked PolicyEngine raises yaml.YAMLError
 
-## Policy show fix — March 10, 2026
-
-### Bug: `interceptr policy show` always displayed "No policy configured"
-- **Root cause**: The CLI `policy_show()` reads `data.get("loaded", False)` from the
-  API response. But `GET /api/v1/policy/` returned `{"status": "no_policy_loaded"}` when
-  no engine was loaded, and `interceptor_service.policy_engine.info` (which lacked
-  a `"loaded"` key) when it was — so `loaded` was always `False` from the CLI's perspective.
-- **Fix 1 — `app/api/policy.py`**: `get_policy_info()` now explicitly includes `"loaded"`:
-  - No policy: `{"loaded": False, "status": "no_policy_loaded"}`
-  - Policy loaded: `{**engine.info, "loaded": True}`
-- **Fix 2 — `app/core/policy_engine.py`**: `info` property now returns `"allow"` and `"deny"`
-  lists (instead of `allow_count` / `deny_count`), plus `"loaded": True`, so the CLI can
-  render the full allow/deny table without a separate request.
 
 ### New tests — 12 added
 - `tests/test_policy_info_api.py`:
@@ -597,29 +543,6 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - `tests/test_intercept_with_policy.py` `test_get_policy_info`: replaced
   `data["allow_count"] == 2` / `data["deny_count"] == 2` with
   `len(data["allow"]) == 2` / `len(data["deny"]) == 2` to match new response format
-
-## Policy startup robustness fixes — March 10, 2026
-
-### Bug 1: empty/invalid policy.yaml crashed the server on startup
-- **Root cause**: `lifespan()` in `main.py` called `PolicyEngine("policy.yaml")`
-  unconditionally whenever the file existed. An empty or comment-only file raises
-  `ValueError` ("Policy file must be a YAML mapping"), killing the server before it
-  could serve a single request.
-- **Fix** (`main.py`): Wrapped the `PolicyEngine(...)` call in `try/except (ValueError, FileNotFoundError)`.
-  On any load error, `interceptor_service.policy_engine` is left as `None` and a
-  `logger.warning` is emitted. The server always starts regardless of policy state.
-
-### Bug 2: ensure_policy_file_exists() wrote an empty file that triggered Bug 1
-- **Root cause**: `ensure_policy_file_exists()` in `docker.py` called `policy_file.touch()`,
-  producing a zero-byte file. Docker mounts it, the server sees it, tries to parse it,
-  and crashes (Bug 1 — now fixed, but still better to avoid the warning).
-- **Fix** (`docker.py`): Replaced `touch()` with:
-  ```python
-  policy_file.write_text("# Interceptr policy — edit with: interceptr policy edit\n")
-  ```
-  A comment-only file parses to `None` via `yaml.safe_load`, which fails
-  `isinstance(data, dict)` and raises `ValueError`. With Bug 1 fixed, this is
-  handled gracefully (engine stays `None`, server starts cleanly, no warning spam).
 
 ### New tests — 10 added (172 total, all passing)
 - `tests/test_policy_startup.py`:
@@ -634,30 +557,6 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
   - `test_ensure_policy_does_not_overwrite_existing_file` — existing file untouched
   - `test_ensure_policy_creates_interceptr_dir_if_missing` — dir created if needed
 
-## Policy volume mount — March 10, 2026
-
-### Fix: policy.yaml not persisting across container restarts
-- **Root cause**: No bind mount was configured in `docker-compose.yml`. The container
-  had its own `/app/policy.yaml` (written by `docker cp`) which disappeared on every
-  `docker compose down` / restart. On a fresh `up`, the file was gone.
-- **Fix — docker-compose.yml**: Added `volumes` under the `interceptr` service:
-  ```yaml
-  volumes:
-    - ${HOME}/.interceptr/policy.yaml:/app/policy.yaml
-  ```
-  The host file `~/.interceptr/policy.yaml` is now the single source of truth.
-  The container always sees it, and it survives container restarts.
-- **Fix — `docker.py`**:
-  - Added `ensure_policy_file_exists()`: creates `~/.interceptr/policy.yaml` (empty) if
-    it doesn't exist, so Docker doesn't fail to start when the mount source is missing.
-  - Rewrote `copy_policy_if_exists()`: removed the `docker cp` subprocess entirely. Since
-    the file is already mounted, only a `POST /api/v1/policy/reload` call is needed so the
-    server picks up any changes written to the host file.
-- **Fix — `interceptr/cli/main.py` `start()`**:
-  - Added `ensure_policy_file_exists()` call (new step 4) before `start_containers()`.
-  - Import list updated to include `ensure_policy_file_exists`.
-  - Step comments renumbered: 4=ensure policy file, 5=start containers, 6=wait,
-    7=reload policy, 8=open TUI.
 
 ### Design notes
 - Docker bind mounts a **file** (not a directory), so if the source path doesn't exist
@@ -666,29 +565,6 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - An empty `policy.yaml` causes `POST /api/v1/policy/reload` to return 422 (no valid
   policy), which is correct — `copy_policy_if_exists()` skips the reload call if the
   file is empty (`st_size == 0`), so no spurious 422 errors on first run.
-
-## Policy sync + reload fixes — March 10, 2026
-
-### Bug 1 fixed: `interceptr policy edit` changes not reaching the container
-- **Root cause**: `copy_policy_if_exists()` in `docker.py` was only called during
-  `interceptr start`. Changes saved by `PolicyEditorApp` in the TUI were written to
-  `~/.interceptr/policy.yaml` locally but never propagated into the running container.
-- **Fix**: In `interceptr/cli/main.py`, `policy_edit()` now calls `copy_policy_if_exists()`
-  immediately after `PolicyEditorApp().run()` returns.
-  - On success: prints a green "✅ Policy copied into container and reloaded." message.
-  - On any exception (container stopped, Docker not running): prints a yellow warning
-    "⚠  Policy saved locally but could not sync to container: …" and exits cleanly (no crash).
-
-### Bug 2 fixed: `interceptr policy reload` returned 404 with no policy
-- **Root cause**: `POST /api/v1/policy/reload` raised `HTTPException(status_code=404)` when
-  `policy.yaml` was absent from the container. The CLI did not catch `HTTPStatusError` so
-  the error surfaced as an unhandled exception.
-- **Fix — server side** (`app/api/policy.py`): Changed 404 → 422. The detail message now
-  explicitly instructs users to run `interceptr policy edit` first.
-- **Fix — CLI side** (`interceptr/cli/main.py` `policy_reload()`): Added `except httpx.HTTPStatusError`
-  handler. A 422 shows a yellow panel: "No policy.yaml was found — run `interceptr policy edit`".
-  Other HTTP errors show a generic error panel with the status code.
-- `tests/test_security_controls.py`: Updated rate-limit assertion to accept `{200, 422}` (was `{200, 404}`).
 
 ### New tests — 13 added (162 total, all passing)
 - `tests/test_policy_reload_api.py` (5 tests): 422 on missing file, 422 detail text,
