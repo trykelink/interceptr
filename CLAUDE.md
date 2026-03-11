@@ -260,6 +260,8 @@ docker compose up
 - Healthcheck: `GET /health`
 - Build strategy: multi-stage Dockerfile
 - Target final image size: under 200MB
+- `packaging>=23.0` is installed explicitly with `--prefix=/install` before `requirements.txt`
+  to prevent it resolving from the base image instead of the prefixed install tree
 
 ## API endpoints
 ```

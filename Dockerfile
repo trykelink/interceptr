@@ -13,6 +13,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir --prefix=/install "packaging>=23.0" \
     && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
