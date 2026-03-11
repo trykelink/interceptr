@@ -88,26 +88,41 @@ def start() -> None:
     if is_first_run():
         run_setup()
 
+    import sys as _sys
     from interceptr.cli.docker import (
-        is_docker_running,
+        ensure_docker_running,
         is_compose_present,
+        is_first_run_docker,
         download_compose,
         start_containers,
         wait_for_server,
         copy_policy_if_exists,
+        COMPOSE_FILE,
     )
 
-    # 1. Check Docker is installed and running
-    if not is_docker_running():
-        console.print(
-            Panel(
-                "[red]Docker is not running.[/red]\n\n"
-                "Please start Docker Desktop and try again.\n"
-                "Download Docker: https://docs.docker.com/get-docker/",
-                title="[red]Docker Required[/red]",
-                border_style="red",
+    # 1. Check Docker is installed and running; auto-start on Linux if needed
+    if not ensure_docker_running():
+        if _sys.platform == "linux":
+            console.print(
+                Panel(
+                    "[red]Docker is not running.[/red]\n\n"
+                    "Start it manually with:\n"
+                    "  [bold]sudo systemctl start docker[/bold]\n\n"
+                    "Then run [bold]interceptr start[/bold] again.",
+                    title="[red]Docker Required[/red]",
+                    border_style="red",
+                )
             )
-        )
+        else:
+            console.print(
+                Panel(
+                    "[red]Docker is not running.[/red]\n\n"
+                    "Please start Docker Desktop and try again.\n"
+                    "Download Docker: https://docs.docker.com/get-docker/",
+                    title="[red]Docker Required[/red]",
+                    border_style="red",
+                )
+            )
         raise typer.Exit(1)
 
     # 2. Download docker-compose.yml if not present
@@ -118,31 +133,40 @@ def start() -> None:
             _error_panel(str(exc))
             raise typer.Exit(1)
 
-    # 3. Start containers
+    # 3. Detect first run to set appropriate timeout and spinner message
+    first_run = is_first_run_docker()
+    if first_run:
+        _timeout = 300
+        _msg = "⏳ Starting Interceptr for the first time (this may take 3-5 minutes while the image builds)..."
+    else:
+        _timeout = 60
+        _msg = "⏳ Waiting for server to be ready..."
+
+    # 4. Start containers
     try:
         start_containers()
     except RuntimeError as exc:
         _error_panel(str(exc))
         raise typer.Exit(1)
 
-    # 4. Wait for server to be healthy
-    ready = wait_for_server(timeout=60)
+    # 5. Wait for server to be healthy
+    ready = wait_for_server(timeout=_timeout, message=_msg)
     if not ready:
         console.print(
             Panel(
                 "[red]Server did not start in time.[/red]\n\n"
                 "Check logs with:\n"
-                "  [bold]docker compose logs[/bold]",
+                f"  [bold]docker compose -f {COMPOSE_FILE} logs[/bold]",
                 title="[red]Startup Timeout[/red]",
                 border_style="red",
             )
         )
         raise typer.Exit(1)
 
-    # 5. Copy policy.yaml into container if one exists locally
+    # 6. Copy policy.yaml into container if one exists locally
     copy_policy_if_exists()
 
-    # 6. Open TUI
+    # 7. Open TUI
     from interceptr.cli.tui.app import InterceptrTUI
     InterceptrTUI().run()
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -24,6 +25,56 @@ def is_docker_running() -> bool:
         text=True,
     )
     return result.returncode == 0
+
+
+def ensure_docker_running() -> bool:
+    """Ensure Docker is running. On Linux, attempt to start it via sudo systemctl.
+
+    Returns True if Docker is running (or was successfully started), False otherwise.
+    Prints friendly messages before attempting sudo on Linux.
+    """
+    if is_docker_running():
+        return True
+
+    if sys.platform != "linux":
+        return False
+
+    # Check systemctl is available (systemd-based Linux)
+    systemctl_check = subprocess.run(
+        ["which", "systemctl"], capture_output=True, text=True
+    )
+    if systemctl_check.returncode != 0:
+        return False
+
+    console.print(
+        "[yellow]⚠  Docker daemon is not running.[/yellow]\n"
+        "   Interceptr needs to start it. This requires your system password.\n"
+        "   Your password is used only to start Docker — nothing is stored.\n\n"
+        "   Starting Docker..."
+    )
+
+    result = subprocess.run(["sudo", "systemctl", "start", "docker"])
+    if result.returncode != 0:
+        return False
+
+    # Wait up to 10s for Docker to become ready
+    for _ in range(10):
+        time.sleep(1)
+        if is_docker_running():
+            console.print("[green]✅ Docker started.[/green]")
+            return True
+
+    return False
+
+
+def is_first_run_docker() -> bool:
+    """Return True if the interceptr image has never been pulled/built locally."""
+    result = subprocess.run(
+        ["docker", "images", "-q", "interceptr-interceptr"],
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() == ""
 
 
 def download_compose() -> None:
@@ -92,11 +143,14 @@ def copy_policy_if_exists() -> None:
             return
 
 
-def wait_for_server(timeout: int = 60) -> bool:
+def wait_for_server(
+    timeout: int = 60,
+    message: str = "⏳ Waiting for server to be ready...",
+) -> bool:
     """Poll /health every 2 seconds until 200 or timeout. Returns True if ready."""
     with Progress(
         SpinnerColumn(),
-        TextColumn("[cyan]⏳ Waiting for server to be ready...[/cyan]"),
+        TextColumn(f"[cyan]{message}[/cyan]"),
         transient=True,
     ) as progress:
         progress.add_task("wait", total=None)

@@ -516,13 +516,53 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Repo: https://github.com/trykelink/interceptr
 
 ## CLI
-- Install: `curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | sh`
+- Install: `curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | bash`
 - Entry point: `interceptr = interceptr.cli.main:app`
 - `interceptr start` — checks Docker, downloads compose to `~/.interceptr/`, starts containers, waits for health, opens TUI
 - `interceptr stop` — stops containers via `docker compose down`
 - Config dir: `~/.interceptr/`
 - Compose file: `~/.interceptr/docker-compose.yml` (downloaded from GitHub on first start)
 - Uninstall: `interceptr uninstall` or `uninstall.sh`
+
+## Linux install flow fixes — March 10, 2026
+
+### Fix 1: `curl | sh` → `curl | bash`
+- **Root cause**: Ubuntu's `/bin/sh` is `dash`, which does not support bash-specific syntax
+  (arrays, `#!/bin/bash` shebang). Running `curl ... | sh` would fail with
+  `sh: 78: Syntax error: "(" unexpected`.
+- **Fix**: Updated `README.md` and `CLAUDE.md` install/uninstall commands to use `| bash`.
+  The `install.sh` shebang was already `#!/bin/bash` — no change needed there.
+
+### Fix 2: Auto-start Docker daemon on Linux
+- **Root cause**: Linux has no Docker Desktop. The daemon must be started with
+  `sudo systemctl start docker`. The old code only showed a "start Docker Desktop" message.
+- **Fix**: Added `ensure_docker_running()` in `docker.py`. On Linux it:
+  1. Checks `which systemctl` to confirm systemd is available before attempting sudo
+  2. Prints a friendly warning about password use before any prompt appears
+  3. Runs `subprocess.run(["sudo", "systemctl", "start", "docker"])` — OS handles the prompt
+  4. Polls `docker info` for up to 10s; returns True if Docker becomes ready
+  5. Falls back to a Linux-specific manual-instructions panel if it fails
+- On macOS, the original "start Docker Desktop" message is unchanged.
+- `main.py` updated to call `ensure_docker_running()` instead of `is_docker_running()`.
+- Sudo password is never stored or logged.
+
+### Fix 3: First-run timeout (60s → 300s)
+- **Root cause**: On a fresh install, `docker compose up` must pull/build the image (~500MB).
+  The old 60s timeout caused false "Startup Timeout" errors during first run.
+- **Fix**: Added `is_first_run_docker()` in `docker.py` — checks if the local image exists
+  via `docker images -q interceptr-interceptr`. Returns True if no image found.
+- In `main.py`, `is_first_run_docker()` is called before `start_containers()` to set:
+  - First run: `timeout=300`, spinner: "Starting Interceptr for the first time..."
+  - Subsequent runs: `timeout=60`, spinner: "Waiting for server to be ready..."
+- `wait_for_server()` now accepts an optional `message` parameter.
+
+### Fix 4: `docker compose logs` → `docker compose -f {COMPOSE_FILE} logs`
+- **Root cause**: `docker-compose.yml` lives in `~/.interceptr/`, not the CWD. Running
+  `docker compose logs` from any other directory fails with "no configuration file provided".
+- **Fix**: `COMPOSE_FILE` was already defined in `docker.py`; now exported and imported in
+  `main.py`. Every error message that suggested `docker compose logs` now uses:
+  `docker compose -f {COMPOSE_FILE} logs`.
+- Applied to: the Startup Timeout panel in `start()`.
 
 ## Completed files
 

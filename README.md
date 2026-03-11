@@ -90,7 +90,7 @@ User Input
 
 **macOS / Linux:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | bash
 ```
 
 ### Windows
@@ -110,7 +110,7 @@ interceptr uninstall
 
 Or via script:
 ```bash
-curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/uninstall.sh | sh
+curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/uninstall.sh | bash
 ```
 
 ---
