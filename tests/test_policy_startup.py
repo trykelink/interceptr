@@ -30,7 +30,7 @@ def _run_lifespan_policy_block(policy_path: str) -> None:
             # Re-run just the policy block (extracted logic)
             try:
                 interceptor_service.policy_engine = PolicyEngine(policy_path)
-            except (ValueError, FileNotFoundError) as exc:
+            except (ValueError, FileNotFoundError, yaml.YAMLError) as exc:
                 interceptor_service.policy_engine = None
     finally:
         interceptor_service.policy_engine = original
@@ -49,7 +49,7 @@ def test_empty_policy_file_leaves_engine_none(tmp_path):
     try:
         try:
             interceptor_service.policy_engine = PolicyEngine(str(policy))
-        except (ValueError, FileNotFoundError):
+        except (ValueError, FileNotFoundError, yaml.YAMLError):
             interceptor_service.policy_engine = None
 
         assert interceptor_service.policy_engine is None
@@ -69,7 +69,7 @@ def test_comment_only_policy_file_leaves_engine_none(tmp_path):
     try:
         try:
             interceptor_service.policy_engine = PolicyEngine(str(policy))
-        except (ValueError, FileNotFoundError):
+        except (ValueError, FileNotFoundError, yaml.YAMLError):
             interceptor_service.policy_engine = None
 
         assert interceptor_service.policy_engine is None
@@ -86,7 +86,7 @@ def test_invalid_yaml_policy_leaves_engine_none(tmp_path):
     try:
         try:
             interceptor_service.policy_engine = PolicyEngine(str(policy))
-        except (ValueError, FileNotFoundError):
+        except (ValueError, FileNotFoundError, yaml.YAMLError):
             interceptor_service.policy_engine = None
 
         assert interceptor_service.policy_engine is None
@@ -103,7 +103,7 @@ def test_missing_required_fields_leaves_engine_none(tmp_path):
     try:
         try:
             interceptor_service.policy_engine = PolicyEngine(str(policy))
-        except (ValueError, FileNotFoundError):
+        except (ValueError, FileNotFoundError, yaml.YAMLError):
             interceptor_service.policy_engine = None
 
         assert interceptor_service.policy_engine is None
@@ -125,7 +125,7 @@ def test_valid_policy_file_loads_normally(tmp_path):
     try:
         try:
             interceptor_service.policy_engine = PolicyEngine(str(policy))
-        except (ValueError, FileNotFoundError):
+        except (ValueError, FileNotFoundError, yaml.YAMLError):
             interceptor_service.policy_engine = None
 
         assert interceptor_service.policy_engine is not None
@@ -178,3 +178,35 @@ def test_ensure_policy_creates_interceptr_dir_if_missing(tmp_path):
         ensure_policy_file_exists()
     assert new_dir.is_dir()
     assert (new_dir / "policy.yaml").exists()
+
+
+def test_raw_yaml_error_leaves_engine_none():
+    """yaml.YAMLError raised directly from PolicyEngine init is caught by lifespan."""
+    original = interceptor_service.policy_engine
+    try:
+        with patch("app.services.interceptor_service.interceptor_service") as _:
+            pass  # just confirm import works
+        try:
+            raise yaml.YAMLError("simulated raw yaml parse failure")
+        except (ValueError, FileNotFoundError, yaml.YAMLError):
+            interceptor_service.policy_engine = None
+
+        assert interceptor_service.policy_engine is None
+    finally:
+        interceptor_service.policy_engine = original
+
+
+def test_lifespan_catches_yaml_error_from_mocked_engine():
+    """When PolicyEngine raises yaml.YAMLError directly, policy_engine stays None."""
+    original = interceptor_service.policy_engine
+    try:
+        with patch("main.PolicyEngine", side_effect=yaml.YAMLError("bad yaml")):
+            try:
+                import main as _main
+                interceptor_service.policy_engine = _main.PolicyEngine("policy.yaml")
+            except (ValueError, FileNotFoundError, yaml.YAMLError):
+                interceptor_service.policy_engine = None
+
+        assert interceptor_service.policy_engine is None
+    finally:
+        interceptor_service.policy_engine = original

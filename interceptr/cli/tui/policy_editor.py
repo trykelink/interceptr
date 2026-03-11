@@ -104,14 +104,21 @@ TOOL_CATALOG: list[dict[str, Any]] = [
 
 
 def parse_policy_yaml(content: str) -> dict[str, Any]:
-    """Parse a YAML policy string and return a normalized dict."""
+    """Parse a YAML policy string and return a normalized dict.
+
+    Supports both the PolicyEngine format (rules.allow / rules.deny) and the
+    legacy flat format (top-level allow / deny) for backwards compatibility.
+    """
     data = yaml.safe_load(content) or {}
     if not isinstance(data, dict):
         return {"agent": "*", "allow": [], "deny": [], "default": "allow"}
+    rules = data.get("rules") or {}
+    if not isinstance(rules, dict):
+        rules = {}
     return {
         "agent": str(data.get("agent", "*")),
-        "allow": list(data.get("allow") or []),
-        "deny": list(data.get("deny") or []),
+        "allow": list(rules.get("allow") or data.get("allow") or []),
+        "deny": list(rules.get("deny") or data.get("deny") or []),
         "default": str(data.get("default", "allow")),
     }
 
@@ -145,11 +152,14 @@ def load_existing_policy() -> dict[str, Any]:
 def build_yaml_content(
     agent: str, allow: list[str], deny: list[str], default: str
 ) -> str:
-    """Build a YAML string for the policy file compatible with the Policy Engine."""
+    """Build a YAML string in PolicyEngine format (version + rules nesting)."""
     data: dict[str, Any] = {
+        "version": "1.0",
         "agent": agent or "*",
-        "allow": allow,
-        "deny": deny,
+        "rules": {
+            "allow": allow,
+            "deny": deny,
+        },
         "default": default,
     }
     return yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)

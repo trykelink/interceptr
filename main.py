@@ -2,6 +2,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+import yaml
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -42,7 +43,7 @@ async def lifespan(app: FastAPI):
         try:
             interceptor_service.policy_engine = PolicyEngine("policy.yaml")
             logger.info("Policy loaded for agent=%s", interceptor_service.policy_engine.agent)
-        except (ValueError, FileNotFoundError) as exc:
+        except (ValueError, FileNotFoundError, yaml.YAMLError) as exc:
             interceptor_service.policy_engine = None
             logger.warning("policy.yaml present but could not be loaded (%s). All tool calls will be ALLOWED.", exc)
     else:

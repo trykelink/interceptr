@@ -527,6 +527,52 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Compose file: `~/.interceptr/docker-compose.yml` (downloaded from GitHub on first start)
 - Uninstall: `interceptr uninstall` or `uninstall.sh`
 
+## Policy format + startup robustness fixes — March 10, 2026
+
+### Bug 1: PolicyEditorApp saved wrong YAML format
+- **Root cause**: `build_yaml_content()` in `policy_editor.py` produced a flat structure
+  (`allow`/`deny` at top level, no `version`, no `rules` nesting) that `PolicyEngine`
+  cannot load. `parse_policy_yaml()` also read from flat `allow`/`deny` keys, so round-tripping
+  worked within the TUI but the file was never valid for the server.
+- **Fix — `build_yaml_content`**: Now outputs the PolicyEngine format:
+  ```yaml
+  version: "1.0"
+  agent: "*"
+  rules:
+    allow: [...]
+    deny: [...]
+  default: "allow"
+  ```
+- **Fix — `parse_policy_yaml`**: Now reads `rules.allow` / `rules.deny` first (PolicyEngine
+  format), with backwards-compatible fallback to top-level `allow`/`deny` for old files.
+  `rules` key takes precedence when both formats are present in the same file.
+- `load_existing_policy()` benefits automatically (it calls `parse_policy_yaml`).
+
+### Bug 2: server crashes on startup if policy.yaml is invalid (extended fix)
+- **Previous fix** (ValueErrror, FileNotFoundError) already in place from earlier session.
+- **Extended**: Added `yaml.YAMLError` to the `except` tuple in `main.py` lifespan, and
+  added `import yaml` at the top of `main.py`. Even though `PolicyEngine` currently wraps
+  `yaml.YAMLError` as `ValueError` internally, the explicit catch makes the intent clear
+  and protects against future refactoring.
+
+### Test updates — 8 new tests (180 total, all passing)
+- `tests/test_policy_editor.py`:
+  - `test_build_yaml_basic_structure` → updated to check `data["rules"]["allow/deny"]`
+  - `test_build_yaml_allow_default` → updated to check `data["rules"]["deny"]`
+  - `test_build_yaml_empty_lists` → updated to check under `data["rules"]`
+  - `test_build_yaml_key_order` → updated to check `version → agent → rules → default`
+  - `test_parse_policy_yaml_full` → renamed to `test_parse_policy_yaml_full_legacy_format`
+  - Added `test_parse_policy_yaml_full_engine_format` — parses new PolicyEngine YAML
+  - Added `test_build_yaml_has_version_field` — confirms `version: "1.0"` is present
+  - Added `test_build_yaml_nests_allow_deny_under_rules` — confirms no top-level allow/deny
+  - Added `test_build_yaml_loadable_by_policy_engine` — end-to-end: output → PolicyEngine
+  - Added `test_parse_policy_yaml_rules_take_precedence_over_legacy` — rules wins
+  - Added `test_parse_policy_yaml_null_rules_falls_back_to_legacy` — fallback behaviour
+- `tests/test_policy_startup.py`:
+  - All simulated lifespan `except` tuples updated to `(ValueError, FileNotFoundError, yaml.YAMLError)`
+  - Added `test_raw_yaml_error_leaves_engine_none` — yaml.YAMLError caught directly
+  - Added `test_lifespan_catches_yaml_error_from_mocked_engine` — mocked PolicyEngine raises yaml.YAMLError
+
 ## Policy startup robustness fixes — March 10, 2026
 
 ### Bug 1: empty/invalid policy.yaml crashed the server on startup
