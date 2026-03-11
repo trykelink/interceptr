@@ -115,8 +115,8 @@ async def test_get_policy_info(client_with_policy: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["agent"] == "customer-support-agent"
-    assert data["allow_count"] == 2
-    assert data["deny_count"] == 2
+    assert len(data["allow"]) == 2
+    assert len(data["deny"]) == 2
     assert data["default"] == "deny"
 
 

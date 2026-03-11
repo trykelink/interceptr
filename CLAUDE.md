@@ -593,6 +593,11 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
   - 5 tests for loaded-policy response: `loaded=True`, `agent`, `allow` list, `deny` list, `default`
   - 4 unit tests for `PolicyEngine.info`: `loaded=True`, allow list, deny list, no count fields
 
+### Existing test updated
+- `tests/test_intercept_with_policy.py` `test_get_policy_info`: replaced
+  `data["allow_count"] == 2` / `data["deny_count"] == 2` with
+  `len(data["allow"]) == 2` / `len(data["deny"]) == 2` to match new response format
+
 ## Policy startup robustness fixes — March 10, 2026
 
 ### Bug 1: empty/invalid policy.yaml crashed the server on startup
