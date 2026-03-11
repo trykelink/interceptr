@@ -572,6 +572,10 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - `tests/test_policy_cli.py` (8 tests): copy called after TUI, success message, warning on
   copy failure, no crash on exception; 422 → friendly panel, panel text, non-422 generic error, success path.
 
+## Project-level docs (root)
+- `CHANGELOG.md` — Keep a Changelog format, v0.1.0 entries: Added, Fixed, Security
+- `CONTRIBUTING.md` — Dev setup, running tests, bug reporting
+
 ## Completed files
 
 ### Week 6 — CLI + Install Script (continued)
