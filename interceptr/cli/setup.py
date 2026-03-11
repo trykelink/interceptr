@@ -108,8 +108,7 @@ def run_setup() -> None:
     # Step 3 — Ask if they want to add a provider
     answer = _ask_with_timeout(
         "Would you like to add an AI provider for enhanced detection? [y/N]",
-        default="n",
-        timeout=30,
+        timeout=90,
     )
 
     provider = None
