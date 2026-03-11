@@ -94,6 +94,7 @@ def start() -> None:
         is_compose_present,
         is_first_run_docker,
         download_compose,
+        ensure_policy_file_exists,
         start_containers,
         wait_for_server,
         copy_policy_if_exists,
@@ -142,14 +143,17 @@ def start() -> None:
         _timeout = 60
         _msg = "⏳ Waiting for server to be ready..."
 
-    # 4. Start containers
+    # 4. Ensure policy.yaml exists on the host so the bind mount doesn't fail
+    ensure_policy_file_exists()
+
+    # 5. Start containers
     try:
         start_containers()
     except RuntimeError as exc:
         _error_panel(str(exc))
         raise typer.Exit(1)
 
-    # 5. Wait for server to be healthy
+    # 6. Wait for server to be healthy
     ready = wait_for_server(timeout=_timeout, message=_msg)
     if not ready:
         console.print(
@@ -163,10 +167,10 @@ def start() -> None:
         )
         raise typer.Exit(1)
 
-    # 6. Copy policy.yaml into container if one exists locally
+    # 7. Trigger policy reload so the server picks up the mounted policy.yaml
     copy_policy_if_exists()
 
-    # 7. Open TUI
+    # 8. Open TUI
     from interceptr.cli.tui.app import InterceptrTUI
     InterceptrTUI().run()
 

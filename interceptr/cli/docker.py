@@ -122,25 +122,32 @@ def stop_containers() -> None:
         )
 
 
-def copy_policy_if_exists() -> None:
-    """Copy policy.yaml into the running container if one exists locally."""
-    policy_paths = [
-        Path.cwd() / "policy.yaml",
-        INTERCEPTR_DIR / "policy.yaml",
-    ]
+def ensure_policy_file_exists() -> None:
+    """Create an empty ~/.interceptr/policy.yaml if it doesn't exist yet.
 
-    for policy_path in policy_paths:
-        if policy_path.is_file():
-            result = subprocess.run(
-                ["docker", "cp", str(policy_path), "interceptr-interceptr-1:/app/policy.yaml"],
-                capture_output=True,
-            )
-            if result.returncode == 0:
-                try:
-                    httpx.post("http://localhost:8000/api/v1/policy/reload", timeout=5)
-                except Exception:
-                    pass
-            return
+    Docker bind mounts fail at startup when the source path is missing on the host.
+    Calling this before docker compose up guarantees the mount source is present.
+    """
+    INTERCEPTR_DIR.mkdir(parents=True, exist_ok=True)
+    policy_file = INTERCEPTR_DIR / "policy.yaml"
+    if not policy_file.exists():
+        policy_file.touch()
+
+
+def copy_policy_if_exists() -> None:
+    """Reload the container's policy from the mounted ~/.interceptr/policy.yaml.
+
+    The file is bind-mounted into the container at /app/policy.yaml, so no
+    docker cp is needed — writing to ~/.interceptr/policy.yaml is sufficient.
+    This function just hits the reload endpoint so the server picks up changes.
+    """
+    policy_file = INTERCEPTR_DIR / "policy.yaml"
+    if not policy_file.exists() or policy_file.stat().st_size == 0:
+        return
+    try:
+        httpx.post("http://localhost:8000/api/v1/policy/reload", timeout=5)
+    except Exception:
+        pass
 
 
 def wait_for_server(

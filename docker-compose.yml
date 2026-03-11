@@ -12,6 +12,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://interceptr:CHANGE_ME_IN_PRODUCTION@db:5432/interceptr}
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ${HOME}/.interceptr/policy.yaml:/app/policy.yaml
     depends_on:
       db:
         condition: service_healthy
