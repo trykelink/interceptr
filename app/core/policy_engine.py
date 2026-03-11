@@ -60,9 +60,10 @@ class PolicyEngine:
     @property
     def info(self) -> dict:
         return {
+            "loaded": True,
             "agent": self.agent,
-            "allow_count": len(self.allow_list),
-            "deny_count": len(self.deny_list),
+            "allow": self.allow_list,
+            "deny": self.deny_list,
             "default": self.default,
             "policy_path": self.policy_path,
         }

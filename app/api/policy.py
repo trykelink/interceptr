@@ -11,8 +11,8 @@ router = APIRouter(prefix="/api/v1/policy", tags=["policy"])
 @router.get("/")
 def get_policy_info():
     if interceptor_service.policy_engine is None:
-        return {"status": "no_policy_loaded"}
-    return interceptor_service.policy_engine.info
+        return {"loaded": False, "status": "no_policy_loaded"}
+    return {**interceptor_service.policy_engine.info, "loaded": True}
 
 
 @router.post("/reload")
