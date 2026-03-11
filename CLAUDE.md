@@ -372,7 +372,8 @@ POST /api/v1/analyze/       — Analyze input text for prompt injection patterns
 - CI workflow: `.github/workflows/ci.yml` — runs pytest on every push to main and every PR
 - Docker publish: `.github/workflows/docker-publish.yml` — builds and pushes `imelinc/interceptr` on version tags
 - Multi-platform build: linux/amd64 + linux/arm64 (Apple Silicon + Linux servers)
-- To release: `git tag v0.1.0 && git push origin v0.1.0`
+- Build cache: `cache-from: type=gha` / `cache-to: type=gha,mode=max` for proper layer invalidation
+- To release: `git tag v0.1.0 && git push origin v0.1.0 --force` (use `--force` to re-trigger with same tag)
 - Secrets required in GitHub repo: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
 
 ## Policy Editor TUI — architecture notes
