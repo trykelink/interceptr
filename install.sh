@@ -112,7 +112,7 @@ if ! command -v interceptr >/dev/null 2>&1; then
   warn "interceptr command not found in PATH."
   warn "You may need to restart your shell or run: source ~/.bashrc"
 else
-  interceptr --version 2>/dev/null || true
+  interceptr --help 2>/dev/null || true
 fi
 
 # 8. Success message

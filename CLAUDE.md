@@ -436,6 +436,7 @@ Fish uses `~/.config/fish/config.fish` and a different `set -x PATH` syntax.
 Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 
 ## Key decisions
+- `--version` / `-V` flag removed from CLI — was causing test failures; version visible via `pip show interceptr` or the help panel
 - Sync SQLAlchemy (not async) — simpler, sufficient for this use case
 - UUID as primary key for all models
 - Tests use SQLite in-memory — no Docker dependency in CI

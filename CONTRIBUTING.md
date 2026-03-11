@@ -51,7 +51,7 @@ As of v0.1.0, all 192 tests should pass.
 Check [existing issues](https://github.com/trykelink/interceptr/issues) before opening a new one.
 
 When filing a bug report, include:
-- Interceptr version (`interceptr --version`)
+- Interceptr version (from `pyproject.toml` or `pip show interceptr`)
 - OS and Docker version
 - Steps to reproduce
 - Expected vs. actual behavior
