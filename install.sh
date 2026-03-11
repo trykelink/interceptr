@@ -105,7 +105,7 @@ fi
 # Activate PATH in the current session
 export PATH="$PATH:$HOME/.local/bin"
 
-info "✅ PATH configured — interceptr is ready to use"
+info "✅ PATH configured in shell config files"
 
 # 7. Verify installation
 if ! command -v interceptr >/dev/null 2>&1; then
@@ -116,10 +116,18 @@ else
 fi
 
 # 8. Success message
+# Detect shell for source command hint
+case "$SHELL" in
+  */zsh)  SOURCE_CMD="source ~/.zshrc" ;;
+  */bash) SOURCE_CMD="source ~/.bashrc" ;;
+  *)      SOURCE_CMD="source ~/.bashrc" ;;
+esac
+
 printf "\n${GREEN}✅ Interceptr installed successfully!${RESET}\n\n"
-printf "Get started:\n"
-printf "   interceptr start      -- downloads, starts server, opens dashboard\n"
-printf "   interceptr stop       -- stops the server\n"
-printf "   interceptr help       -- show all commands\n\n"
+printf "⚠️  The ${GREEN}interceptr${RESET} command is not yet available in this terminal.\n"
+printf "   To activate it, run:\n\n"
+printf "   ${GREEN}${SOURCE_CMD}${RESET}\n\n"
+printf "   Or simply open a new terminal, then run:\n\n"
+printf "   ${GREEN}interceptr start${RESET}\n\n"
 printf "Docker is required to run Interceptr: https://docs.docker.com/get-docker/\n"
 printf "Built by Kelink: ${GREEN}https://kelink.dev${RESET}\n\n"

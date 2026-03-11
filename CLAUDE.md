@@ -460,6 +460,15 @@ Bash arrays (`SHELL_CONFIGS=(...)`) require bash. On Ubuntu, `/bin/sh` is dash (
 only, no arrays). Changed shebang to `#!/bin/bash` to support the array syntax.
 macOS `/bin/bash` and Linux bash are both available on all supported targets.
 
+### Post-install activation message (fixed)
+`curl ... | sh` runs in a subshell — any `export` inside dies when the script exits and
+does not propagate to the parent terminal. The old success message said "interceptr is
+ready to use" which was misleading. Fixed by:
+- Detecting the user's shell via `$SHELL` (zsh → `source ~/.zshrc`, bash → `source ~/.bashrc`, fallback → `source ~/.bashrc`)
+- Replacing the final success block with a clear message that tells the user they must
+  run the appropriate `source` command or open a new terminal before `interceptr` works.
+- Intermediate PATH-configured message now says "configured in shell config files" (not "ready to use").
+
 ### Fish shell (pending — v0.2)
 Fish uses `~/.config/fish/config.fish` and a different `set -x PATH` syntax.
 Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
