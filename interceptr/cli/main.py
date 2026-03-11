@@ -44,7 +44,7 @@ def _not_running_panel() -> None:
 
 def _version_callback(value: bool) -> None:
     if value:
-        print(f"interceptr {__version__}")
+        typer.echo(f"interceptr {__version__}")
         raise typer.Exit()
 
 
@@ -52,10 +52,10 @@ def _version_callback(value: bool) -> None:
 def main(
     ctx: typer.Context,
     version: bool = typer.Option(
-        None, "--version", "-V",
+        False, "--version", "-V",
         is_eager=True,
-        expose_value=False,
         callback=_version_callback,
+        expose_value=False,
         help="Show version and exit.",
     ),
 ) -> None:
