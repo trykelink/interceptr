@@ -314,12 +314,19 @@ def policy_show() -> None:
 def policy_edit() -> None:
     """Open the interactive policy editor."""
     from interceptr.cli.tui.policy_editor import PolicyEditorApp
+    from interceptr.cli.docker import copy_policy_if_exists
     PolicyEditorApp().run()
+    try:
+        copy_policy_if_exists()
+        console.print("[green]✅ Policy copied into container and reloaded.[/green]")
+    except Exception as exc:
+        console.print(f"[yellow]⚠  Policy saved locally but could not sync to container: {exc}[/yellow]")
 
 
 @policy_app.command("reload")
 def policy_reload() -> None:
     """Reload policy from disk."""
+    import httpx as _httpx
     try:
         data = client.reload_policy()
         console.print(
@@ -331,6 +338,20 @@ def policy_reload() -> None:
         )
     except InterceptrNotRunningError:
         _not_running_panel()
+        raise typer.Exit(1)
+    except _httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 422:
+            console.print(
+                Panel(
+                    "[yellow]No policy.yaml was found in the container.[/yellow]\n\n"
+                    "Create one first with:\n"
+                    "  [bold]interceptr policy edit[/bold]",
+                    title="[yellow]No Policy Found[/yellow]",
+                    border_style="yellow",
+                )
+            )
+        else:
+            _error_panel(f"Reload failed (HTTP {exc.response.status_code}): {exc.response.text}")
         raise typer.Exit(1)
 
 

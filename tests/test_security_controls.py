@@ -52,7 +52,7 @@ async def test_policy_reload_rate_limit_enforced(client: AsyncClient) -> None:
         "/api/v1/policy/reload",
         5,
     )
-    assert all(status in {200, 404} for status in statuses)
+    assert all(status in {200, 422} for status in statuses)
     assert over_limit_status == 429
 
 

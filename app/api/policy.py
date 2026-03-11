@@ -22,8 +22,11 @@ def reload_policy(request: Request, response: Response):
     if interceptor_service.policy_engine is None:
         if not os.path.isfile(policy_path):
             raise HTTPException(
-                status_code=404,
-                detail="policy.yaml not found. Place policy.yaml in the app directory and try again.",
+                status_code=422,
+                detail=(
+                    "No policy.yaml found in the container. "
+                    "Run 'interceptr policy edit' to create one, then try again."
+                ),
             )
         interceptor_service.policy_engine = PolicyEngine(policy_path)
     else:
