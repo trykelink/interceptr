@@ -131,7 +131,7 @@ def ensure_policy_file_exists() -> None:
     INTERCEPTR_DIR.mkdir(parents=True, exist_ok=True)
     policy_file = INTERCEPTR_DIR / "policy.yaml"
     if not policy_file.exists():
-        policy_file.touch()
+        policy_file.write_text("# Interceptr policy — edit with: interceptr policy edit\n")
 
 
 def copy_policy_if_exists() -> None:

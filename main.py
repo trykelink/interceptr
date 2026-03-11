@@ -39,8 +39,12 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     logger.info("Database connected")
     if os.path.isfile("policy.yaml"):
-        interceptor_service.policy_engine = PolicyEngine("policy.yaml")
-        logger.info("Policy loaded for agent=%s", interceptor_service.policy_engine.agent)
+        try:
+            interceptor_service.policy_engine = PolicyEngine("policy.yaml")
+            logger.info("Policy loaded for agent=%s", interceptor_service.policy_engine.agent)
+        except (ValueError, FileNotFoundError) as exc:
+            interceptor_service.policy_engine = None
+            logger.warning("policy.yaml present but could not be loaded (%s). All tool calls will be ALLOWED.", exc)
     else:
         logger.warning("No policy.yaml found. All tool calls will be ALLOWED by default.")
     yield
