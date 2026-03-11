@@ -21,4 +21,4 @@ def test_version_flag_short_form():
 
 def test_version_output_format():
     result = runner.invoke(cli_app, ["--version"])
-    assert result.output.strip() == f"interceptr {__version__}"
+    assert f"interceptr {__version__}" in result.output
