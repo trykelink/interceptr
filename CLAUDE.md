@@ -527,6 +527,35 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Compose file: `~/.interceptr/docker-compose.yml` (downloaded from GitHub on first start)
 - Uninstall: `interceptr uninstall` or `uninstall.sh`
 
+## Policy sync + reload fixes — March 10, 2026
+
+### Bug 1 fixed: `interceptr policy edit` changes not reaching the container
+- **Root cause**: `copy_policy_if_exists()` in `docker.py` was only called during
+  `interceptr start`. Changes saved by `PolicyEditorApp` in the TUI were written to
+  `~/.interceptr/policy.yaml` locally but never propagated into the running container.
+- **Fix**: In `interceptr/cli/main.py`, `policy_edit()` now calls `copy_policy_if_exists()`
+  immediately after `PolicyEditorApp().run()` returns.
+  - On success: prints a green "✅ Policy copied into container and reloaded." message.
+  - On any exception (container stopped, Docker not running): prints a yellow warning
+    "⚠  Policy saved locally but could not sync to container: …" and exits cleanly (no crash).
+
+### Bug 2 fixed: `interceptr policy reload` returned 404 with no policy
+- **Root cause**: `POST /api/v1/policy/reload` raised `HTTPException(status_code=404)` when
+  `policy.yaml` was absent from the container. The CLI did not catch `HTTPStatusError` so
+  the error surfaced as an unhandled exception.
+- **Fix — server side** (`app/api/policy.py`): Changed 404 → 422. The detail message now
+  explicitly instructs users to run `interceptr policy edit` first.
+- **Fix — CLI side** (`interceptr/cli/main.py` `policy_reload()`): Added `except httpx.HTTPStatusError`
+  handler. A 422 shows a yellow panel: "No policy.yaml was found — run `interceptr policy edit`".
+  Other HTTP errors show a generic error panel with the status code.
+- `tests/test_security_controls.py`: Updated rate-limit assertion to accept `{200, 422}` (was `{200, 404}`).
+
+### New tests — 13 added (162 total, all passing)
+- `tests/test_policy_reload_api.py` (5 tests): 422 on missing file, 422 detail text,
+  absence of old 404, 200 when file present, 200 reload of loaded policy.
+- `tests/test_policy_cli.py` (8 tests): copy called after TUI, success message, warning on
+  copy failure, no crash on exception; 422 → friendly panel, panel text, non-422 generic error, success path.
+
 ## `packaging` missing + Linux install flow fixes — March 10, 2026
 
 ### Fix: `ModuleNotFoundError: No module named 'packaging'` in Docker
