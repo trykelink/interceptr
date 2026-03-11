@@ -43,7 +43,6 @@ RUN rm -rf /usr/local/lib/python3.12/ensurepip \
     /usr/local/lib/python3.12/site-packages/pytest* \
     /usr/local/lib/python3.12/site-packages/iniconfig* \
     /usr/local/lib/python3.12/site-packages/pluggy* \
-    /usr/local/lib/python3.12/site-packages/packaging* \
     /usr/local/bin/pip* \
     /root/.cache \
     && find /usr/local -type d -name "__pycache__" -prune -exec rm -rf {} + \

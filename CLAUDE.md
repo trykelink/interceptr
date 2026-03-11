@@ -524,6 +524,20 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Compose file: `~/.interceptr/docker-compose.yml` (downloaded from GitHub on first start)
 - Uninstall: `interceptr uninstall` or `uninstall.sh`
 
+## `packaging` missing + Linux install flow fixes — March 10, 2026
+
+### Fix: `ModuleNotFoundError: No module named 'packaging'` in Docker
+- **Root cause**: `slowapi` depends on `limits`, which imports `from packaging.version import Version`
+  at runtime. `packaging` was not listed as an explicit dependency and was being deleted from the
+  Docker image in the Dockerfile cleanup step (`/usr/local/lib/python3.12/site-packages/packaging*`).
+  The cleanup step originally targeted only dev/test packages; `packaging` was mistakenly included
+  because it's installed by `pytest` in dev, but it's also a transitive runtime dep of `slowapi`.
+- **Fix**:
+  - Added `packaging>=23.0` to `requirements.txt` (used by the Dockerfile `pip install`)
+  - Added `packaging>=23.0` to `pyproject.toml` `[project].dependencies` (for pipx installs)
+  - Removed the `packaging*` line from the Dockerfile cleanup `rm -rf` block so the package
+    is preserved in the final image
+
 ## Linux install flow fixes — March 10, 2026
 
 ### Fix 1: `curl | sh` → `curl | bash`
