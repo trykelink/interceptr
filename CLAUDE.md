@@ -573,6 +573,26 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
   - Added `test_raw_yaml_error_leaves_engine_none` — yaml.YAMLError caught directly
   - Added `test_lifespan_catches_yaml_error_from_mocked_engine` — mocked PolicyEngine raises yaml.YAMLError
 
+## Policy show fix — March 10, 2026
+
+### Bug: `interceptr policy show` always displayed "No policy configured"
+- **Root cause**: The CLI `policy_show()` reads `data.get("loaded", False)` from the
+  API response. But `GET /api/v1/policy/` returned `{"status": "no_policy_loaded"}` when
+  no engine was loaded, and `interceptor_service.policy_engine.info` (which lacked
+  a `"loaded"` key) when it was — so `loaded` was always `False` from the CLI's perspective.
+- **Fix 1 — `app/api/policy.py`**: `get_policy_info()` now explicitly includes `"loaded"`:
+  - No policy: `{"loaded": False, "status": "no_policy_loaded"}`
+  - Policy loaded: `{**engine.info, "loaded": True}`
+- **Fix 2 — `app/core/policy_engine.py`**: `info` property now returns `"allow"` and `"deny"`
+  lists (instead of `allow_count` / `deny_count`), plus `"loaded": True`, so the CLI can
+  render the full allow/deny table without a separate request.
+
+### New tests — 12 added
+- `tests/test_policy_info_api.py`:
+  - 3 tests for no-policy response: 200 status, `loaded=False`, `status` field
+  - 5 tests for loaded-policy response: `loaded=True`, `agent`, `allow` list, `deny` list, `default`
+  - 4 unit tests for `PolicyEngine.info`: `loaded=True`, allow list, deny list, no count fields
+
 ## Policy startup robustness fixes — March 10, 2026
 
 ### Bug 1: empty/invalid policy.yaml crashed the server on startup
