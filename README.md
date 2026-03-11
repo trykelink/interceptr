@@ -90,7 +90,7 @@ User Input
 
 **macOS / Linux:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | bash
+curl -sSL https://kelink.dev/install | bash
 ```
 
 ### Windows

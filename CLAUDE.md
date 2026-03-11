@@ -479,7 +479,7 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Repo: https://github.com/trykelink/interceptr
 
 ## CLI
-- Install: `curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | bash`
+- Install: `curl -sSL https://kelink.dev/install | bash`
 - Entry point: `interceptr = interceptr.cli.main:app`
 - `interceptr start` — checks Docker, downloads compose to `~/.interceptr/`, starts containers, waits for health, opens TUI
 - `interceptr stop` — stops containers via `docker compose down`

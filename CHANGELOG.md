@@ -18,7 +18,7 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - Interactive policy editor TUI with per-tool allow/deny checkboxes, mutual-exclusivity enforcement, and live server reload on save.
 - CLI with commands: `start`, `stop`, `status`, `logs`, `policy show/edit/reload`, `analyze`, `config`, and `uninstall`.
 - First-time setup wizard (`interceptr start`) with optional LLM provider configuration for enhanced detection.
-- One-command installer for macOS and Linux: `curl -sSL https://raw.githubusercontent.com/trykelink/interceptr/main/install.sh | bash`.
+- One-command installer for macOS and Linux: `curl -sSL https://kelink.dev/install | bash`.
 - Multi-stage Docker build (`python:3.12-slim` base, non-root runtime user, target image size under 200 MB).
 - `docker-compose.yml` for running the full stack (Interceptr + PostgreSQL) with health-gated startup and resource limits.
 - `policy.yaml` volume mount in Compose for policy persistence across container restarts.
