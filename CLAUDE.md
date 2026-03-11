@@ -527,6 +527,42 @@ Not supported in v0.1. Add a fish block in v0.2 if user demand warrants it.
 - Compose file: `~/.interceptr/docker-compose.yml` (downloaded from GitHub on first start)
 - Uninstall: `interceptr uninstall` or `uninstall.sh`
 
+## Policy startup robustness fixes — March 10, 2026
+
+### Bug 1: empty/invalid policy.yaml crashed the server on startup
+- **Root cause**: `lifespan()` in `main.py` called `PolicyEngine("policy.yaml")`
+  unconditionally whenever the file existed. An empty or comment-only file raises
+  `ValueError` ("Policy file must be a YAML mapping"), killing the server before it
+  could serve a single request.
+- **Fix** (`main.py`): Wrapped the `PolicyEngine(...)` call in `try/except (ValueError, FileNotFoundError)`.
+  On any load error, `interceptor_service.policy_engine` is left as `None` and a
+  `logger.warning` is emitted. The server always starts regardless of policy state.
+
+### Bug 2: ensure_policy_file_exists() wrote an empty file that triggered Bug 1
+- **Root cause**: `ensure_policy_file_exists()` in `docker.py` called `policy_file.touch()`,
+  producing a zero-byte file. Docker mounts it, the server sees it, tries to parse it,
+  and crashes (Bug 1 — now fixed, but still better to avoid the warning).
+- **Fix** (`docker.py`): Replaced `touch()` with:
+  ```python
+  policy_file.write_text("# Interceptr policy — edit with: interceptr policy edit\n")
+  ```
+  A comment-only file parses to `None` via `yaml.safe_load`, which fails
+  `isinstance(data, dict)` and raises `ValueError`. With Bug 1 fixed, this is
+  handled gracefully (engine stays `None`, server starts cleanly, no warning spam).
+
+### New tests — 10 added (172 total, all passing)
+- `tests/test_policy_startup.py`:
+  - `test_empty_policy_file_leaves_engine_none` — empty file → engine stays None
+  - `test_comment_only_policy_file_leaves_engine_none` — comment-only → engine stays None
+  - `test_invalid_yaml_policy_leaves_engine_none` — malformed YAML → engine stays None
+  - `test_missing_required_fields_leaves_engine_none` — partial YAML → engine stays None
+  - `test_valid_policy_file_loads_normally` — valid file still loads correctly
+  - `test_ensure_policy_creates_file_when_missing` — file is created when absent
+  - `test_ensure_policy_file_content_is_comment_only` — content starts with `#`
+  - `test_ensure_policy_file_is_not_valid_yaml_mapping` — placeholder parses to `None`
+  - `test_ensure_policy_does_not_overwrite_existing_file` — existing file untouched
+  - `test_ensure_policy_creates_interceptr_dir_if_missing` — dir created if needed
+
 ## Policy volume mount — March 10, 2026
 
 ### Fix: policy.yaml not persisting across container restarts
