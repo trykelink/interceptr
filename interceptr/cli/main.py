@@ -42,8 +42,23 @@ def _not_running_panel() -> None:
     )
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        print(f"interceptr {__version__}")
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context) -> None:
+def main(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        None, "--version", "-V",
+        is_eager=True,
+        expose_value=False,
+        callback=_version_callback,
+        help="Show version and exit.",
+    ),
+) -> None:
     """Show help when called with no subcommand."""
     if ctx.invoked_subcommand is None:
         _show_help()
