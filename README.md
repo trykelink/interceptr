@@ -18,7 +18,7 @@
   <img src="https://img.shields.io/badge/fastapi-0.115.0-green" alt="FastAPI 0.115.0">
   <img src="https://img.shields.io/badge/license-MIT-black" alt="MIT License">
   <img src="https://img.shields.io/badge/version-0.1.0-purple" alt="Version 0.1.0">
-  <img src="https://img.shields.io/badge/tests-55%20passing-brightgreen" alt="55 tests passing">
+  <img src="https://img.shields.io/badge/tests-192%20passing-brightgreen" alt="192 tests passing">
   <br>
   <a href="https://github.com/trykelink/interceptr/actions/workflows/ci.yml">
     <img src="https://github.com/trykelink/interceptr/actions/workflows/ci.yml/badge.svg" alt="CI">
